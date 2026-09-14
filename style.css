@@ -1,0 +1,341 @@
+/* =========================================================
+   لقطتها 📸 — لعبة أسئلة جماعية (حتى 8 لاعبين، كتالوقات متعددة)
+   هوية بصرية: أصفر + سماوي على خلفية داكنة، بروح "لقطة الكاميرا"
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Tajawal:wght@400;500;700;900&display=swap');
+
+:root{
+    --yellow: #ffd60a;
+    --yellow-soft: #ffe066;
+    --yellow-glow: rgba(255, 214, 10, .45);
+    --cyan: #22d3ee;
+    --cyan-soft: #67e8f9;
+    --cyan-glow: rgba(34, 211, 238, .4);
+    --ok: #34d399;
+    --bad: #f87171;
+
+    --bg-deep: #060a14;
+    --bg-panel: rgba(15, 23, 38, .82);
+    --bg-panel-2: rgba(20, 30, 48, .92);
+    --line: rgba(255, 255, 255, .09);
+
+    --text-1: #f7fafc;
+    --text-2: #b9c4d4;
+    --text-3: #6b7a90;
+
+    --font-display: 'Baloo Bhaijaan 2', 'Tajawal', sans-serif;
+    --font-body: 'Tajawal', sans-serif;
+
+    --radius: 20px;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body{ height:100%; }
+
+body{
+    font-family: var(--font-body);
+    background: var(--bg-deep);
+    color: var(--text-1);
+    direction: rtl;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* ---------- خلفية: توهجان أصفر وسماوي متقابلان + شبكة نقاط خفيفة ---------- */
+.bg-glow{ position: fixed; inset:0; z-index:-2; pointer-events:none; }
+.bg-glow::before, .bg-glow::after{
+    content:""; position:absolute; width:52vw; height:52vw; border-radius:50%;
+    filter: blur(90px); opacity:.28; animation: orb-drift 14s ease-in-out infinite;
+}
+.bg-glow::before{ top:-18%; right:-14%; background: var(--yellow); }
+.bg-glow::after{ bottom:-20%; left:-14%; background: var(--cyan); animation-delay: -7s; animation-direction: reverse; }
+@keyframes orb-drift{ 0%,100%{ transform: translate(0,0) scale(1); } 50%{ transform: translate(-3%, 4%) scale(1.08); } }
+.bg-dots{
+    position: fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(circle at 50% 35%, rgba(0,0,0,.9), transparent 75%);
+}
+
+/* ---------- مكتبة الحركات المشتركة ---------- */
+@keyframes fadeSlideUp{ from{ opacity:0; transform: translateY(16px); } to{ opacity:1; transform: translateY(0); } }
+@keyframes fadeSlideRight{ from{ opacity:0; transform: translateX(-14px); } to{ opacity:1; transform: translateX(0); } }
+@keyframes popIn{ from{ opacity:0; transform: scale(.82); } to{ opacity:1; transform: scale(1); } }
+@keyframes bounceIn{
+    0%{ opacity:0; transform: scale(.55) translateY(18px); }
+    65%{ opacity:1; transform: scale(1.06) translateY(-3px); }
+    100%{ opacity:1; transform: scale(1) translateY(0); }
+}
+@keyframes scoreBump{ 0%{ transform: scale(1); } 35%{ transform: scale(1.4); color: var(--yellow); } 100%{ transform: scale(1); } }
+@keyframes shineSweep{ 0%{ transform: translateX(-130%) skewX(-18deg); } 100%{ transform: translateX(230%) skewX(-18deg); } }
+@keyframes chipPop{ 0%{ transform: scale(1); } 40%{ transform: scale(1.08); } 100%{ transform: scale(1); } }
+@keyframes ringExpand{ 0%{ transform: scale(1); opacity:.7; } 100%{ transform: scale(1.9); opacity:0; } }
+
+@media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+.screen{ display:none; min-height:100vh; width:100%; }
+.screen.active{ display:flex; flex-direction:column; animation: fadeSlideUp .5s ease; }
+
+button{ font-family: inherit; cursor:pointer; border:none; outline:none; background:none; color:inherit; }
+input{ font-family: inherit; }
+
+/* ========================================================= 1) الشاشة الرئيسية ========================================================= */
+#startScreen{ align-items:center; justify-content:center; padding: 40px 24px; text-align:center; gap: 8px; }
+
+/* ---------- البطل: الاسم كبير على اليمين + الإيموجي عائم بهالة على الشمال ---------- */
+.hero-split{
+    display:flex; align-items:center; justify-content:center; gap: clamp(24px, 6vw, 70px);
+    flex-wrap: wrap; margin-bottom: 46px; max-width: 980px;
+}
+.hero-text{ text-align: right; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+
+.series-eyebrow{
+    font-size:.85rem; font-weight:700; color: var(--cyan-soft); letter-spacing:.5px;
+    padding: 5px 14px; border:1px solid var(--cyan-glow); border-radius:999px; background: rgba(34,211,238,.08);
+    animation: fadeSlideUp .5s ease backwards; animation-delay: .05s;
+}
+
+.wordmark{
+    font-family: var(--font-display); font-weight:800; font-size: clamp(3.4rem, 11vw, 6.2rem);
+    line-height:1; letter-spacing:.5px; margin: 4px 0 2px;
+    background: linear-gradient(92deg, var(--yellow) 0%, var(--yellow-soft) 40%, var(--cyan-soft) 70%, var(--cyan) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 6px 30px rgba(255,214,10,.18));
+    animation: fadeSlideUp .55s ease backwards; animation-delay: .15s;
+}
+
+.tagline{ color: var(--text-2); font-size: 1.08rem; max-width: 360px; animation: fadeSlideUp .55s ease backwards; animation-delay: .3s; }
+
+/* الإيموجي العائم مع هالات متوهجة نابضة */
+.hero-emoji-orbit{ position:relative; width: 190px; height: 190px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.hero-emoji-orbit .halo-ring{
+    position:absolute; inset:0; margin:auto; border-radius:50%; border:2px solid var(--yellow);
+    opacity:0; animation: halo-pulse 3.6s ease-out infinite;
+}
+.hero-emoji-orbit .halo-ring.r1{ width:78px; height:78px; animation-delay:0s; border-color: var(--yellow); }
+.hero-emoji-orbit .halo-ring.r2{ width:78px; height:78px; animation-delay:1.2s; border-color: var(--cyan); }
+.hero-emoji-orbit .halo-ring.r3{ width:78px; height:78px; animation-delay:2.4s; border-color: var(--yellow-soft); }
+@keyframes halo-pulse{
+    0%{ transform: scale(1); opacity:.75; }
+    100%{ transform: scale(2.5); opacity:0; }
+}
+.hero-emoji-orbit .emoji-core{
+    position:relative; z-index:2; font-size: 5.4rem; line-height:1;
+    animation: emoji-float 3.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 22px var(--yellow-glow)) drop-shadow(0 0 42px var(--cyan-glow));
+}
+@keyframes emoji-float{ 0%,100%{ transform: translateY(0) rotate(-2deg); } 50%{ transform: translateY(-16px) rotate(2deg); } }
+
+@media (max-width: 620px){
+    .hero-split{ flex-direction: column-reverse; text-align:center; }
+    .hero-text{ align-items:center; text-align:center; }
+}
+
+.menu-stack{ display:flex; flex-direction:column; gap:14px; width:100%; max-width: 380px; }
+.menu-stack .big-btn{ animation: fadeSlideUp .45s ease backwards; }
+.menu-stack .big-btn:nth-child(1){ animation-delay: .4s; }
+.menu-stack .big-btn:nth-child(2){ animation-delay: .5s; }
+.menu-stack .big-btn:nth-child(3){ animation-delay: .6s; }
+
+.big-btn{
+    display:flex; align-items:center; gap:14px; padding: 16px 20px; border-radius: 16px;
+    background: var(--bg-panel); border:1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    text-align:right; position:relative; overflow:hidden;
+}
+.big-btn:hover{ transform: translateY(-3px); border-color: var(--cyan-glow); box-shadow: 0 14px 30px rgba(0,0,0,.32), 0 0 22px var(--cyan-glow); }
+.big-btn:active{ transform: translateY(-1px) scale(.98); }
+.big-btn .icon{ font-size:1.5rem; width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg, var(--yellow), var(--cyan)); flex-shrink:0; box-shadow: 0 4px 14px rgba(255,214,10,.25); }
+.big-btn .label{ display:flex; flex-direction:column; gap:2px; }
+.big-btn .label strong{ font-family: var(--font-display); font-size:1.05rem; }
+.big-btn .label small{ color: var(--text-3); }
+.big-btn.primary{ border-color: var(--yellow-glow); box-shadow: 0 10px 30px rgba(0,0,0,.3), 0 0 26px rgba(255,214,10,.16); }
+.big-btn.primary::after{
+    content:""; position:absolute; top:0; bottom:0; width:34%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent);
+    animation: shineSweep 3.2s ease-in-out infinite; animation-delay: 1.4s;
+}
+
+/* ========================================================= 2) شاشات الإعداد (خطوات) ========================================================= */
+#setupScreen{ align-items:center; justify-content:flex-start; padding: 28px 16px 60px; }
+
+.setup-shell{ width:100%; max-width: 760px; display:flex; flex-direction:column; gap:22px; }
+
+.step-track{ display:flex; align-items:center; justify-content:center; gap:10px; }
+.step-dot{ width:10px; height:10px; border-radius:50%; background: var(--line); transition: all .2s ease; }
+.step-dot.done{ background: var(--cyan); }
+.step-dot.current{ background: var(--yellow); width:26px; border-radius:6px; }
+
+.setup-card{
+    background: var(--bg-panel); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 22px; animation: fadeSlideUp .4s ease;
+}
+.setup-card h2{ font-family: var(--font-display); font-size:1.4rem; margin-bottom:4px; }
+.setup-card p.hint{ color: var(--text-3); font-size:.92rem; margin-bottom:18px; }
+
+/* كتالوقات */
+.catalog-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:12px; }
+.catalog-chip{
+    display:flex; flex-direction:column; align-items:center; gap:8px; padding: 18px 10px; border-radius:16px;
+    background: var(--bg-panel-2); border:2px solid var(--line); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    animation: popIn .35s ease backwards;
+}
+.catalog-grid .catalog-chip:nth-child(1){ animation-delay:.02s; } .catalog-grid .catalog-chip:nth-child(2){ animation-delay:.06s; }
+.catalog-grid .catalog-chip:nth-child(3){ animation-delay:.1s; } .catalog-grid .catalog-chip:nth-child(4){ animation-delay:.14s; }
+.catalog-grid .catalog-chip:nth-child(5){ animation-delay:.18s; } .catalog-grid .catalog-chip:nth-child(6){ animation-delay:.22s; }
+.catalog-grid .catalog-chip:nth-child(7){ animation-delay:.26s; } .catalog-grid .catalog-chip:nth-child(n+8){ animation-delay:.3s; }
+.catalog-chip:hover{ transform: translateY(-2px); }
+.catalog-chip:active{ animation: chipPop .28s ease; }
+.catalog-chip .cat-emoji{ font-size:1.9rem; }
+.catalog-chip .cat-name{ font-weight:700; font-size:.95rem; }
+.catalog-chip.selected{ border-color: var(--cyan); background: linear-gradient(160deg, rgba(34,211,238,.14), rgba(255,214,10,.08)); box-shadow: 0 0 22px var(--cyan-glow); }
+
+/* عدد اللاعبين */
+.stepper-row{ display:flex; align-items:center; justify-content:center; gap:22px; }
+.stepper-btn{
+    width:56px; height:56px; border-radius:16px; font-size:1.6rem; font-weight:800;
+    background: var(--bg-panel-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    color: var(--yellow); transition: transform .12s ease, border-color .12s ease;
+}
+.stepper-btn:hover{ border-color: var(--yellow-glow); }
+.stepper-btn:active{ transform: scale(.88); }
+.stepper-val{ font-family: var(--font-display); font-size: 3rem; min-width:70px; text-align:center;
+    background: linear-gradient(90deg, var(--yellow), var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent;
+    display:inline-block; animation: popIn .25s ease; }
+.stepper-cap{ text-align:center; color: var(--text-3); margin-top:8px; font-size:.9rem; }
+
+/* أسماء اللاعبين */
+.players-name-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px; }
+.player-name-row{ display:flex; align-items:center; gap:10px; background: var(--bg-panel-2); border:1px solid var(--line); border-radius:14px; padding:8px 10px;
+    animation: fadeSlideRight .35s ease backwards; transition: border-color .15s ease; }
+.players-name-grid .player-name-row:nth-child(1){ animation-delay:.02s; } .players-name-grid .player-name-row:nth-child(2){ animation-delay:.06s; }
+.players-name-grid .player-name-row:nth-child(3){ animation-delay:.1s; } .players-name-grid .player-name-row:nth-child(4){ animation-delay:.14s; }
+.players-name-grid .player-name-row:nth-child(5){ animation-delay:.18s; } .players-name-grid .player-name-row:nth-child(6){ animation-delay:.22s; }
+.players-name-grid .player-name-row:nth-child(7){ animation-delay:.26s; } .players-name-grid .player-name-row:nth-child(8){ animation-delay:.3s; }
+.player-name-row:focus-within{ border-color: var(--cyan-glow); }
+.player-name-row .p-avatar{ width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.25rem;
+    background: linear-gradient(135deg, rgba(255,214,10,.25), rgba(34,211,238,.25)); flex-shrink:0; }
+.player-name-row input{ flex:1; background:transparent; border:none; color:var(--text-1); font-size:.98rem; font-weight:600; min-width:0; }
+.player-name-row input:focus{ outline:none; }
+
+.setup-nav{ display:flex; justify-content:space-between; gap:12px; }
+.nav-btn{ padding: 13px 26px; border-radius: 14px; font-weight:700; font-family: var(--font-display); font-size:1rem; transition: transform .12s ease, opacity .12s ease; }
+.nav-btn:active{ transform: scale(.96); }
+.nav-btn.ghost{ background: var(--bg-panel-2); border:1px solid var(--line); color: var(--text-2); }
+.nav-btn.solid{ background: linear-gradient(92deg, var(--yellow), var(--cyan)); color:#081018; }
+.nav-btn:disabled{ opacity:.4; pointer-events:none; }
+
+/* ========================================================= 3) شاشة اللعب ========================================================= */
+#gameScreen{ padding: 16px; gap:16px; }
+
+.players-bar{ display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px; }
+.player-chip{
+    display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:14px;
+    background: var(--bg-panel); border:1px solid var(--line); position:relative; overflow:hidden;
+    animation: popIn .35s ease backwards; transition: border-color .2s ease, box-shadow .2s ease;
+}
+.players-bar .player-chip:nth-child(1){ animation-delay:.02s; } .players-bar .player-chip:nth-child(2){ animation-delay:.06s; }
+.players-bar .player-chip:nth-child(3){ animation-delay:.1s; } .players-bar .player-chip:nth-child(4){ animation-delay:.14s; }
+.players-bar .player-chip:nth-child(5){ animation-delay:.18s; } .players-bar .player-chip:nth-child(6){ animation-delay:.22s; }
+.players-bar .player-chip:nth-child(7){ animation-delay:.26s; } .players-bar .player-chip:nth-child(8){ animation-delay:.3s; }
+.player-chip .p-avatar{ font-size:1.3rem; width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,.06); flex-shrink:0; }
+.player-chip .p-info{ display:flex; flex-direction:column; min-width:0; }
+.player-chip .p-name{ font-size:.82rem; color: var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.player-chip .p-score{ font-family: var(--font-display); font-weight:700; font-size:1.15rem; display:inline-block; }
+.player-chip .p-score.bump{ animation: scoreBump .5s ease; }
+.player-chip.active-turn{ border-color: var(--yellow); box-shadow: 0 0 18px var(--yellow-glow); }
+.player-chip.active-turn::before{
+    content:"📸"; position:absolute; top:-6px; left:-6px; font-size:.85rem;
+    animation: chipPop 1.6s ease-in-out infinite;
+}
+
+.round-hub{ display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; }
+.round-pill{ background: var(--bg-panel-2); border:1px solid var(--line); border-radius:999px; padding:8px 18px; font-weight:700; font-size:.9rem;
+    animation: fadeSlideUp .4s ease backwards; animation-delay:.05s; }
+.cat-pill{ background: linear-gradient(90deg, rgba(255,214,10,.16), rgba(34,211,238,.16)); border:1px solid var(--cyan-glow); border-radius:999px; padding:8px 18px; font-weight:700; font-size:.9rem; display:flex; align-items:center; gap:6px;
+    animation: fadeSlideUp .4s ease backwards; animation-delay:.1s; }
+
+.stage{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px; padding: 10px 8px 30px; position:relative; }
+
+.flash-overlay{ position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:50; }
+.flash-overlay.fire{ animation: flashpop .55s ease; }
+@keyframes flashpop{ 0%{opacity:0;} 12%{opacity:.9;} 100%{opacity:0;} }
+
+.question-card{
+    width:100%; max-width: 820px; background: var(--bg-panel); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 30px 26px; text-align:center; position:relative;
+    animation: fadeSlideUp .4s ease;
+}
+.question-card::before{ content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px;
+    background: linear-gradient(120deg, var(--yellow), transparent 40%, var(--cyan)); opacity:.5;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events:none; }
+.question-text{ font-family: var(--font-display); font-size: clamp(1.25rem, 3.4vw, 1.9rem); line-height:1.5; }
+
+.options-grid{ width:100%; max-width: 820px; display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+@media (max-width: 560px){ .options-grid{ grid-template-columns: 1fr; } }
+.option-card{
+    display:flex; align-items:center; gap:12px; padding: 16px 18px; border-radius:16px;
+    background: var(--bg-panel-2); border:1px solid var(--line); font-weight:600; font-size:1.02rem; text-align:right;
+    animation: bounceIn .4s ease backwards; transition: border-color .2s ease, background .2s ease;
+}
+.options-grid .option-card:nth-child(1){ animation-delay:.03s; }
+.options-grid .option-card:nth-child(2){ animation-delay:.09s; }
+.options-grid .option-card:nth-child(3){ animation-delay:.15s; }
+.options-grid .option-card:nth-child(4){ animation-delay:.21s; }
+.option-card .opt-mark{ width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    background: rgba(255,255,255,.06); font-weight:800; }
+.option-card.correct{ border-color: var(--ok); background: rgba(52,211,153,.14); animation: bounceIn .4s ease, correctGlow 1.4s ease-in-out .4s infinite; }
+.option-card.correct .opt-mark{ background: var(--ok); color:#062018; }
+@keyframes correctGlow{ 0%,100%{ box-shadow: 0 0 0 rgba(52,211,153,0); } 50%{ box-shadow: 0 0 18px rgba(52,211,153,.5); } }
+
+.sync-footer{ display:flex; align-items:center; justify-content:center; gap:8px; color: var(--text-3); font-size:.85rem; }
+.live-dot{ width:8px; height:8px; border-radius:50%; background: var(--ok); box-shadow:0 0 8px var(--ok); animation: pulse-dot 1.4s ease-in-out infinite; }
+@keyframes pulse-dot{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+/* ========================================================= 4) شاشة النتائج النهائية (المنصة) ========================================================= */
+#podiumScreen{ align-items:center; justify-content:center; padding: 30px 16px; text-align:center; gap: 26px; }
+.podium-title{ font-family: var(--font-display); font-size: clamp(1.8rem,5vw,2.6rem);
+    background: linear-gradient(90deg, var(--yellow), var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: bounceIn .5s ease; }
+.ranking-list{ width:100%; max-width: 480px; display:flex; flex-direction:column; gap:10px; }
+.rank-row{ display:flex; align-items:center; gap:14px; background: var(--bg-panel); border:1px solid var(--line); border-radius:14px; padding: 12px 16px;
+    animation: bounceIn .5s ease backwards; }
+.ranking-list .rank-row:nth-child(1){ animation-delay:.5s; } .ranking-list .rank-row:nth-child(2){ animation-delay:.38s; }
+.ranking-list .rank-row:nth-child(3){ animation-delay:.26s; } .ranking-list .rank-row:nth-child(4){ animation-delay:.16s; }
+.ranking-list .rank-row:nth-child(n+5){ animation-delay:.08s; }
+.rank-row .medal{ font-size:1.4rem; width:34px; text-align:center; }
+.rank-row .r-avatar{ font-size:1.3rem; }
+.rank-row .r-name{ flex:1; font-weight:700; text-align:right; }
+.rank-row .r-score{ font-family: var(--font-display); font-weight:800; color: var(--yellow); }
+.rank-row.gold{ border-color: var(--yellow); box-shadow: 0 0 24px var(--yellow-glow); background: linear-gradient(90deg, rgba(255,214,10,.1), rgba(34,211,238,.06)); }
+.rank-row.gold .medal{ display:inline-block; animation: chipPop 1.3s ease-in-out infinite; }
+
+/* ========================================================= أدوات عامة ========================================================= */
+.top-corner-link{ position:fixed; top:14px; left:14px; z-index:20; font-size:.82rem; color: var(--text-3); background: var(--bg-panel);
+    border:1px solid var(--line); padding:8px 14px; border-radius:999px; display:flex; align-items:center; gap:6px;
+    animation: fadeSlideUp .4s ease backwards; animation-delay:.2s; transition: border-color .15s ease, transform .15s ease; }
+.top-corner-link:hover{ border-color: var(--cyan-glow); transform: translateY(-2px); }
+
+.modal-overlay{ position:fixed; inset:0; background: rgba(3,6,12,.72); display:flex; align-items:center; justify-content:center; z-index:60; padding:20px; animation: fadeSlideUp .25s ease; }
+.modal-box{ background: var(--bg-panel-2); border:1px solid var(--line); border-radius: var(--radius); padding:26px; max-width: 480px; width:100%; text-align:right; animation: bounceIn .35s ease; }
+.modal-box h3{ font-family: var(--font-display); margin-bottom:12px; font-size:1.3rem; }
+.modal-box p{ color: var(--text-2); line-height:1.8; margin-bottom:18px; }
+.modal-box ul{ color: var(--text-2); line-height:1.9; margin: 0 0 18px 18px; }
+
+::-webkit-scrollbar{ width:8px; }
+::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.15); border-radius:8px; }
+
+@media (max-width: 640px){
+    .setup-card{ padding: 20px 16px; }
+    .setup-nav{ flex-direction:column-reverse; }
+    .nav-btn{ width:100%; }
+}

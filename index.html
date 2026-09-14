@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لقطتها 📸 | لعبة الأسئلة الجماعية</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="bg-dots"></div>
+<div class="flash-overlay" id="flashOverlay"></div>
+
+<a href="judge.html" target="_blank" class="top-corner-link">⚖️ لوحة الحكم</a>
+
+<!-- ============ 1) الشاشة الرئيسية ============ -->
+<main id="startScreen" class="screen active">
+    <div class="hero-split">
+        <div class="hero-text">
+            <span class="series-eyebrow">لعبة أسئلة جماعية</span>
+            <h1 class="wordmark">لقطتها</h1>
+            <p class="tagline">جاوب بسرعة... قبل ما تروح اللقطة لغيرك!</p>
+        </div>
+
+        <div class="hero-emoji-orbit">
+            <span class="halo-ring r1"></span>
+            <span class="halo-ring r2"></span>
+            <span class="halo-ring r3"></span>
+            <span class="emoji-core">📸</span>
+        </div>
+    </div>
+
+    <div class="menu-stack">
+        <button class="big-btn primary" onclick="goToSetupStep(1)">
+            <span class="icon">🚀</span>
+            <span class="label"><strong>ابدأ اللعبة</strong><small>اختر الكتالوقات واللاعبين</small></span>
+        </button>
+        <button class="big-btn" onclick="window.open('judge.html','_blank')">
+            <span class="icon">⚖️</span>
+            <span class="label"><strong>لوحة الحكم</strong><small>يفتحها الحكم على جهازه أو تبويب ثاني</small></span>
+        </button>
+        <button class="big-btn" onclick="showAbout()">
+            <span class="icon">❔</span>
+            <span class="label"><strong>كيف نلعب؟</strong><small>شرح سريع لقوانين اللعبة</small></span>
+        </button>
+    </div>
+</main>
+
+<!-- ============ 2) شاشات الإعداد ============ -->
+<section id="setupScreen" class="screen">
+    <div class="setup-shell">
+
+        <div class="step-track">
+            <div class="step-dot" id="dot1"></div>
+            <div class="step-dot" id="dot2"></div>
+            <div class="step-dot" id="dot3"></div>
+        </div>
+
+        <!-- الخطوة 1: الكتالوقات -->
+        <div class="setup-card" id="stepCatalogs">
+            <h2>📚 اختر الكتالوقات</h2>
+            <p class="hint">اختر كتالوق واحد أو أكثر — الأسئلة بتنسحب منها كلها مع بعض</p>
+            <div class="catalog-grid" id="catalogGrid"></div>
+            <div class="setup-nav" style="margin-top:22px;">
+                <span></span>
+                <button class="nav-btn solid" id="toStep2Btn" onclick="goToSetupStep(2)" disabled>التالي ←</button>
+            </div>
+        </div>
+
+        <!-- الخطوة 2: عدد اللاعبين -->
+        <div class="setup-card" id="stepCount" style="display:none;">
+            <h2>👥 كم عدد اللاعبين؟</h2>
+            <p class="hint">من 2 إلى 8 لاعبين</p>
+            <div class="stepper-row">
+                <button class="stepper-btn" onclick="changePlayerCount(-1)">−</button>
+                <div class="stepper-val" id="playerCountVal">4</div>
+                <button class="stepper-btn" onclick="changePlayerCount(1)">+</button>
+            </div>
+            <p class="stepper-cap">لاعبين</p>
+            <div class="setup-nav" style="margin-top:22px;">
+                <button class="nav-btn ghost" onclick="goToSetupStep(1)">→ رجوع</button>
+                <button class="nav-btn solid" onclick="renderPlayerNames(); goToSetupStep(3)">التالي ←</button>
+            </div>
+        </div>
+
+        <!-- الخطوة 3: أسماء اللاعبين -->
+        <div class="setup-card" id="stepNames" style="display:none;">
+            <h2>🖊️ أسماء اللاعبين</h2>
+            <p class="hint">عدّل الأسماء إذا تحب</p>
+            <div class="players-name-grid" id="playersNameGrid"></div>
+            <div class="setup-nav" style="margin-top:22px;">
+                <button class="nav-btn ghost" onclick="goToSetupStep(2)">→ رجوع</button>
+                <button class="nav-btn solid" onclick="startGame()">ابدأ اللقطة! 📸</button>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ============ 3) شاشة اللعب ============ -->
+<section id="gameScreen" class="screen">
+    <div class="players-bar" id="playersBar"></div>
+
+    <div class="round-hub">
+        <div class="round-pill">سؤال <span id="qNum">1</span> / <span id="qTotal">0</span></div>
+        <div class="cat-pill"><span id="qCatEmoji">🧩</span><span id="qCatName">—</span></div>
+    </div>
+
+    <div class="stage">
+        <div class="question-card" id="questionCardBox">
+            <h2 class="question-text" id="questionText">بانتظار الحكم لبدء السؤال...</h2>
+        </div>
+        <div class="options-grid" id="optionsGrid" style="display:none;"></div>
+    </div>
+
+    <div class="sync-footer"><span class="live-dot"></span> متزامن مباشر مع لوحة الحكم</div>
+</section>
+
+<!-- ============ 4) شاشة النتائج ============ -->
+<section id="podiumScreen" class="screen">
+    <div class="podium-title">🏆 النتيجة النهائية</div>
+    <div class="ranking-list" id="rankingList"></div>
+    <button class="big-btn primary" style="max-width:300px;" onclick="location.reload()">
+        <span class="icon">🔄</span>
+        <span class="label"><strong>لعبة جديدة</strong></span>
+    </button>
+</section>
+
+<!-- نافذة "كيف نلعب" -->
+<div class="modal-overlay" id="aboutModal" style="display:none;">
+    <div class="modal-box">
+        <h3>❔ كيف نلعب لقطتها</h3>
+        <ul>
+            <li>اختاروا الكتالوقات اللي تحبونها (ألعاب، كرتون قديم، دين، منوعات، بلدان، وغيرها).</li>
+            <li>سجّلوا عدد اللاعبين (٢ إلى ٨) وأسماءهم.</li>
+            <li>الحكم يتحكم بالأسئلة من لوحة الحكم على جهاز ثاني أو تبويب ثاني.</li>
+            <li>أول لاعب يجاوب صح يلقطها ويأخذ النقطة، والحكم يسجلها له مباشرة.</li>
+            <li>اللي يجمع أكثر نقاط بنهاية الأسئلة يفوز باللقب!</li>
+        </ul>
+        <button class="nav-btn solid" onclick="document.getElementById('aboutModal').style.display='none'">فهمت 👍</button>
+    </div>
+</div>
+
+<script src="questions.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

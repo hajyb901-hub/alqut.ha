@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة الحكم ⚖️ | لقطتها 📸</title>
+<link rel="stylesheet" href="style.css">
+<style>
+    body{ padding: 18px; }
+    .judge-wrap{ max-width: 720px; margin: 0 auto; display:flex; flex-direction:column; gap:16px; }
+    .judge-header{ display:flex; align-items:center; justify-content:space-between; animation: fadeSlideUp .4s ease; }
+    .judge-header h1{ font-family: var(--font-display); font-size:1.4rem; display:flex; align-items:center; gap:8px; }
+    .conn-badge{ font-size:.82rem; padding:6px 12px; border-radius:999px; background: var(--bg-panel); border:1px solid var(--line); display:flex; align-items:center; gap:6px; }
+    .panel{ background: var(--bg-panel); border:1px solid var(--line); border-radius: var(--radius); padding:18px; animation: fadeSlideUp .4s ease backwards; }
+    .judge-wrap > .panel:nth-of-type(1){ animation-delay:.05s; }
+    .judge-wrap > .panel:nth-of-type(2){ animation-delay:.1s; }
+    .panel h3{ font-family: var(--font-display); font-size:1.05rem; margin-bottom:10px; }
+    .j-question{ font-size:1.1rem; line-height:1.7; margin-bottom:12px; }
+    .j-answer-line{ display:flex; align-items:center; gap:8px; color: var(--ok); font-weight:700; }
+    .j-cat-row{ display:flex; align-items:center; gap:8px; color: var(--text-3); font-size:.9rem; margin-bottom:10px; }
+
+    .players-tabs{ display:flex; flex-wrap:wrap; gap:8px; }
+    .p-tab{ display:flex; align-items:center; gap:6px; padding:9px 13px; border-radius:12px; background: var(--bg-panel-2); border:1px solid var(--line); font-weight:600; font-size:.9rem;
+        animation: popIn .3s ease backwards; transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease; }
+    .players-tabs .p-tab:nth-child(1){ animation-delay:.02s; } .players-tabs .p-tab:nth-child(2){ animation-delay:.06s; }
+    .players-tabs .p-tab:nth-child(3){ animation-delay:.1s; } .players-tabs .p-tab:nth-child(4){ animation-delay:.14s; }
+    .players-tabs .p-tab:nth-child(5){ animation-delay:.18s; } .players-tabs .p-tab:nth-child(6){ animation-delay:.22s; }
+    .players-tabs .p-tab:nth-child(7){ animation-delay:.26s; } .players-tabs .p-tab:nth-child(8){ animation-delay:.3s; }
+    .p-tab:hover{ transform: translateY(-2px); }
+    .p-tab:active{ transform: scale(.94); }
+    .p-tab.active{ border-color: var(--yellow); box-shadow: 0 0 14px var(--yellow-glow); }
+
+    .action-row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .action-btn{ padding:16px; border-radius:14px; font-family: var(--font-display); font-weight:700; font-size:1.05rem; display:flex; align-items:center; justify-content:center; gap:8px;
+        transition: transform .12s ease, box-shadow .12s ease; }
+    .action-btn:active{ transform: scale(.96); }
+    .action-btn.correct{ background: linear-gradient(92deg, #34d399, #10b981); color:#04170f; }
+    .action-btn.correct:hover{ box-shadow: 0 0 20px rgba(52,211,153,.4); }
+    .action-btn.wrong{ background: linear-gradient(92deg, #f87171, #ef4444); color:#210505; }
+    .action-btn.wrong:hover{ box-shadow: 0 0 20px rgba(248,113,113,.4); }
+    .util-row{ display:flex; flex-wrap:wrap; gap:10px; }
+    .util-btn{ flex:1; min-width:130px; padding:12px; border-radius:12px; background: var(--bg-panel-2); border:1px solid var(--line); font-weight:600;
+        transition: transform .12s ease, border-color .12s ease; }
+    .util-btn:hover{ border-color: var(--cyan-glow); }
+    .util-btn:active{ transform: scale(.96); }
+
+    .score-list{ display:flex; flex-direction:column; gap:8px; }
+    .score-row{ display:flex; align-items:center; gap:10px; background: var(--bg-panel-2); border:1px solid var(--line); border-radius:12px; padding:8px 10px;
+        animation: fadeSlideRight .3s ease backwards; }
+    .score-list .score-row:nth-child(1){ animation-delay:.02s; } .score-list .score-row:nth-child(2){ animation-delay:.06s; }
+    .score-list .score-row:nth-child(3){ animation-delay:.1s; } .score-list .score-row:nth-child(4){ animation-delay:.14s; }
+    .score-list .score-row:nth-child(5){ animation-delay:.18s; } .score-list .score-row:nth-child(6){ animation-delay:.22s; }
+    .score-list .score-row:nth-child(7){ animation-delay:.26s; } .score-list .score-row:nth-child(8){ animation-delay:.3s; }
+    .score-row .s-name{ flex:1; font-weight:600; }
+    .score-row .s-val{ font-family: var(--font-display); font-weight:800; min-width:26px; text-align:center; display:inline-block; }
+    .score-row .s-val.bump{ animation: scoreBump .5s ease; }
+    .mini-btn{ width:30px; height:30px; border-radius:9px; background: rgba(255,255,255,.07); font-weight:800; transition: transform .1s ease, background .12s ease; }
+    .mini-btn:hover{ background: rgba(255,255,255,.14); }
+    .mini-btn:active{ transform: scale(.85); }
+
+    .empty-note{ text-align:center; color: var(--text-3); padding: 40px 10px; animation: fadeSlideUp .4s ease; }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="bg-dots"></div>
+
+<div class="judge-wrap">
+    <div class="judge-header">
+        <h1>⚖️ لوحة الحكم</h1>
+        <div class="conn-badge"><span class="live-dot" id="connDot"></span><span id="connText">بانتظار اللعبة...</span></div>
+    </div>
+
+    <div id="emptyState" class="panel empty-note">
+        افتح شاشة اللعبة الرئيسية (index.html) وابدأ اللعبة من جهاز أو تبويب ثاني — بمجرد ما تبدأ بتظهر هنا تلقائياً 📸
+    </div>
+
+    <div id="judgeBody" style="display:none; flex-direction:column; gap:16px;">
+
+        <div class="panel">
+            <div class="j-cat-row"><span id="jCatEmoji">🧩</span><span id="jCatName">—</span><span>•</span><span>سؤال <span id="jQNum">1</span>/<span id="jQTotal">0</span></span></div>
+            <div class="j-question" id="jQuestion">—</div>
+            <div class="j-answer-line">✔️ الإجابة الصحيحة: <span id="jCorrectAnswer">—</span></div>
+        </div>
+
+        <div class="panel">
+            <h3>👤 اللاعب النشط (يحاول الإجابة)</h3>
+            <div class="players-tabs" id="playersTabs"></div>
+        </div>
+
+        <div class="action-row">
+            <button class="action-btn correct" onclick="markCorrect()">✅ صحيح</button>
+            <button class="action-btn wrong" onclick="markWrong()">❌ غلط</button>
+        </div>
+
+        <div class="util-row">
+            <button class="util-btn" onclick="sendAction('reveal')">👁️ إظهار الخيارات</button>
+            <button class="util-btn" onclick="sendAction('hideOptions')">🙈 إخفاء الخيارات</button>
+            <button class="util-btn" onclick="sendAction('prev')">→ السؤال السابق</button>
+            <button class="util-btn" onclick="sendAction('next')">السؤال التالي ←</button>
+        </div>
+
+        <div class="panel">
+            <h3>📊 تعديل النقاط يدوياً</h3>
+            <div class="score-list" id="scoreList"></div>
+        </div>
+
+        <button class="util-btn" style="background:rgba(248,113,113,.14); border-color:rgba(248,113,113,.4); color:#fecaca;" onclick="endGameNow()">🏁 إنهاء اللعبة وعرض النتيجة</button>
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'laqtaha_state_v1';
+const CHANNEL_NAME = 'laqtaha_channel_v1';
+const channel = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL_NAME) : null;
+
+let state = null;
+let selectedActive = null;
+
+function loadFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) applyState(JSON.parse(raw));
+    } catch (e) {}
+}
+
+function sendAction(type, payload) {
+    if (!channel) return;
+    channel.postMessage({ type: 'judge_action', payload: Object.assign({ type }, payload || {}) });
+}
+
+function applyState(s) {
+    state = s;
+    if (!state || state.status === 'setup') {
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('judgeBody').style.display = 'none';
+        document.getElementById('connText').textContent = 'بانتظار اللعبة...';
+        return;
+    }
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('judgeBody').style.display = 'flex';
+    document.getElementById('connText').textContent = 'متصل ✅';
+
+    if (state.status === 'over') {
+        document.getElementById('jQuestion').textContent = 'انتهت اللعبة 🏁 — شوف النتيجة على الشاشة الرئيسية';
+        document.getElementById('jCorrectAnswer').textContent = '—';
+    } else {
+        const cur = state.deck[state.currentIndex];
+        document.getElementById('jCatEmoji').textContent = cur.catEmoji;
+        document.getElementById('jCatName').textContent = cur.catName;
+        document.getElementById('jQNum').textContent = state.currentIndex + 1;
+        document.getElementById('jQTotal').textContent = state.deck.length;
+        document.getElementById('jQuestion').textContent = cur.q;
+        document.getElementById('jCorrectAnswer').textContent = cur.options[cur.a];
+    }
+
+    if (!selectedActive || !state.players.find(p => p.id === selectedActive)) {
+        selectedActive = state.activePlayerId || (state.players[0] && state.players[0].id);
+    }
+
+    renderTabs();
+    renderScores();
+}
+
+function renderTabs() {
+    const wrap = document.getElementById('playersTabs');
+    wrap.innerHTML = '';
+    state.players.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'p-tab' + (p.id === selectedActive ? ' active' : '');
+        btn.innerHTML = `<span>${p.avatar}</span><span>${p.name}</span>`;
+        btn.onclick = () => { selectedActive = p.id; sendAction('setActive', { playerId: p.id }); renderTabs(); };
+        wrap.appendChild(btn);
+    });
+}
+
+function renderScores() {
+    const wrap = document.getElementById('scoreList');
+    wrap.innerHTML = '';
+    state.players.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'score-row';
+        row.innerHTML = `
+            <span>${p.avatar}</span>
+            <span class="s-name">${p.name}</span>
+            <button class="mini-btn" data-a="-1">−</button>
+            <span class="s-val">${p.score}</span>
+            <button class="mini-btn" data-a="1">+</button>`;
+        row.querySelectorAll('.mini-btn').forEach(b => {
+            b.onclick = () => sendAction('adjustScore', { playerId: p.id, delta: parseInt(b.dataset.a, 10) });
+        });
+        wrap.appendChild(row);
+    });
+}
+
+function markCorrect() {
+    if (!selectedActive) return;
+    sendAction('correct', { playerId: selectedActive });
+}
+function markWrong() { sendAction('wrong'); }
+function endGameNow() { if (confirm('تأكيد إنهاء اللعبة وعرض النتيجة النهائية؟')) sendAction('end'); }
+
+if (channel) {
+    channel.onmessage = (ev) => {
+        const msg = ev.data;
+        if (msg && msg.type === 'state_update') applyState(msg.payload);
+    };
+}
+
+window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY && e.newValue) applyState(JSON.parse(e.newValue));
+});
+
+loadFromStorage();
+if (channel) channel.postMessage({ type: 'request_state' });
+</script>
+</body>
+</html>
