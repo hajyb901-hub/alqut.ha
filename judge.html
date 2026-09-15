@@ -69,11 +69,18 @@
 <div class="judge-wrap">
     <div class="judge-header">
         <h1>⚖️ لوحة الحكم</h1>
-        <div class="conn-badge"><span class="live-dot" id="connDot"></span><span id="connText">بانتظار اللعبة...</span></div>
+        <div class="conn-badge"><span class="live-dot" id="connDot"></span><span id="connText">بانتظار كود الغرفة...</span></div>
     </div>
 
-    <div id="emptyState" class="panel empty-note">
-        افتح شاشة اللعبة الرئيسية (index.html) وابدأ اللعبة من جهاز أو تبويب ثاني — بمجرد ما تبدأ بتظهر هنا تلقائياً 📸
+    <div id="roomEntry" class="panel empty-note">
+        <h3 style="margin-bottom:14px;">🔑 أدخل كود الغرفة</h3>
+        <input id="roomCodeInput" class="room-entry-input" maxlength="5" placeholder="XXXXX" autocomplete="off">
+        <button class="nav-btn solid" style="width:100%;" onclick="connectFromInput()">اتصال بالغرفة ⚡</button>
+        <p class="hint" style="margin-top:10px;">الكود يظهر في شاشة اللعب الرئيسية بعد الضغط على «ابدأ اللقطة»</p>
+    </div>
+
+    <div id="emptyState" class="panel empty-note" style="display:none;">
+        بانتظار بدء اللعبة من الشاشة الرئيسية بنفس كود الغرفة — بمجرد ما تبدأ بتظهر هنا تلقائياً 📸
     </div>
 
     <div id="judgeBody" style="display:none; flex-direction:column; gap:16px;">
@@ -110,24 +117,39 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="room-sync.js"></script>
 <script>
-const STORAGE_KEY = 'laqtaha_state_v1';
-const CHANNEL_NAME = 'laqtaha_channel_v1';
-const channel = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL_NAME) : null;
+let roomSync = null;
 
 let state = null;
 let selectedActive = null;
 
-function loadFromStorage() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) applyState(JSON.parse(raw));
-    } catch (e) {}
+function connectToRoom(code) {
+    code = (code || '').toUpperCase().trim();
+    if (!code) return;
+
+    document.getElementById('roomEntry').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('connText').textContent = 'يتصل بغرفة ' + code + '...';
+
+    if (roomSync) roomSync.disconnect();
+    roomSync = new RoomSync(code);
+    roomSync.onStateUpdate = applyState;
+    roomSync.connect();
+
+    // نجيب آخر حالة محفوظة فور الاتصال (يغطي حالة إن اللعبة بدت قبل ما نفتح لوحة الحكم)
+    roomSync.fetchState().then(state => { if (state) applyState(state); });
+}
+
+function connectFromInput() {
+    const code = document.getElementById('roomCodeInput').value;
+    connectToRoom(code);
 }
 
 function sendAction(type, payload) {
-    if (!channel) return;
-    channel.postMessage({ type: 'judge_action', payload: Object.assign({ type }, payload || {}) });
+    if (!roomSync) return;
+    roomSync.sendJudgeAction(Object.assign({ type }, payload || {}));
 }
 
 function applyState(s) {
@@ -201,19 +223,13 @@ function markCorrect() {
 function markWrong() { sendAction('wrong'); }
 function endGameNow() { if (confirm('تأكيد إنهاء اللعبة وعرض النتيجة النهائية؟')) sendAction('end'); }
 
-if (channel) {
-    channel.onmessage = (ev) => {
-        const msg = ev.data;
-        if (msg && msg.type === 'state_update') applyState(msg.payload);
-    };
+// لو الرابط فيه ?room=CODE (من رابط «فتح لوحة الحكم بهذا الكود») نتصل تلقائياً
+const urlParams = new URLSearchParams(window.location.search);
+const roomFromUrl = urlParams.get('room');
+if (roomFromUrl) {
+    document.getElementById('roomCodeInput').value = roomFromUrl.toUpperCase();
+    connectToRoom(roomFromUrl);
 }
-
-window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY && e.newValue) applyState(JSON.parse(e.newValue));
-});
-
-loadFromStorage();
-if (channel) channel.postMessage({ type: 'request_state' });
 </script>
 </body>
 </html>

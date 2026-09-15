@@ -1,16 +1,16 @@
 // =========================================================
 // لقطتها 📸 — محرك اللعبة
-// المزامنة بين شاشة اللعب ولوحة الحكم عبر BroadcastChannel + localStorage
-// (تعمل بين تبويبين/نافذتين على نفس الجهاز والمتصفح — بدون سيرفر)
+// المزامنة بين شاشة اللعب ولوحة الحكم عبر نظام الغرف (Supabase Realtime)
+// كل لعبة تاخذ كود غرفة عشوائي — تشتغل بين أي جهازين على أي شبكة
 // =========================================================
 
 const AVATAR_POOL = ['🦁', '🐯', '🐼', '🦊', '🐸', '🦉', '🐺', '🐨'];
-const STORAGE_KEY = 'laqtaha_state_v1';
-const CHANNEL_NAME = 'laqtaha_channel_v1';
+const LOCAL_RESUME_KEY = 'laqtaha_local_resume_v1'; // نسخة محلية فقط لاسترجاع نفس الجهاز بعد تحديث الصفحة
 
-const channel = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL_NAME) : null;
+let roomSync = null; // كائن مزامنة الغرفة (يُنشأ عند بدء اللعبة)
 
 let gameState = {
+    roomCode: null,
     selectedCatalogs: [],
     playerCount: 4,
     players: [],       // {id, name, avatar, score}
@@ -43,17 +43,17 @@ function shuffleArray(arr) {
     return a;
 }
 
-function saveState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState)); } catch (e) {}
+function saveLocalResume() {
+    try { localStorage.setItem(LOCAL_RESUME_KEY, JSON.stringify(gameState)); } catch (e) {}
 }
 
-function broadcast(type, payload) {
-    if (channel) channel.postMessage({ type, payload });
+function clearLocalResume() {
+    try { localStorage.removeItem(LOCAL_RESUME_KEY); } catch (e) {}
 }
 
 function pushFullState() {
-    saveState();
-    broadcast('state_update', gameState);
+    saveLocalResume();
+    if (roomSync) roomSync.pushState(gameState);
 }
 
 // ========================================================= شاشة البداية والانتقال بين الشاشات =========================================================
@@ -150,14 +150,57 @@ function buildDeck() {
 
 function startGame() {
     buildDeck();
+    gameState.roomCode = generateRoomCode();
     gameState.currentIndex = 0;
     gameState.activePlayerId = gameState.players[0] ? gameState.players[0].id : null;
     gameState.optionsShown = false;
     gameState.revealedCorrect = false;
     gameState.status = 'playing';
+
+    connectRoom(gameState.roomCode);
+    renderRoomBadge();
     pushFullState();
     showScreen('gameScreen');
     renderGameScreen();
+}
+
+// يفتح قناة المزامنة مع لوحة الحكم على نفس كود الغرفة
+function connectRoom(code) {
+    if (roomSync) roomSync.disconnect();
+    roomSync = new RoomSync(code);
+    roomSync.onJudgeAction = handleJudgeAction;
+    roomSync.connect();
+}
+
+function renderRoomBadge() {
+    const codeEl = document.getElementById('roomCodeText');
+    const linkEl = document.getElementById('judgeLinkBtn');
+    if (codeEl) codeEl.textContent = gameState.roomCode;
+    if (linkEl) linkEl.href = 'judge.html?room=' + encodeURIComponent(gameState.roomCode);
+}
+
+function copyRoomCode() {
+    if (!gameState.roomCode) return;
+    navigator.clipboard?.writeText(gameState.roomCode).catch(() => {});
+    const btn = document.getElementById('copyRoomBtn');
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = 'نُسخ ✓';
+    setTimeout(() => { btn.textContent = original; }, 1400);
+}
+
+// محاولة استرجاع اللعبة الجارية بعد تحديث الصفحة على نفس الجهاز
+function tryResumeLocalGame() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LOCAL_RESUME_KEY) || 'null'); } catch (e) {}
+    if (!saved || saved.status !== 'playing' || !saved.roomCode) return false;
+
+    gameState = saved;
+    connectRoom(gameState.roomCode);
+    renderRoomBadge();
+    showScreen('gameScreen');
+    renderGameScreen();
+    return true;
 }
 
 // ========================================================= عرض شاشة اللعب =========================================================
@@ -296,17 +339,9 @@ function handleJudgeAction(msg) {
     pushFullState();
 }
 
-// ========================================================= الاستماع للقناة =========================================================
-if (channel) {
-    channel.onmessage = (ev) => {
-        const msg = ev.data;
-        if (!msg) return;
-        if (msg.type === 'judge_action') handleJudgeAction(msg.payload);
-        if (msg.type === 'request_state' && gameState.status !== 'setup') pushFullState();
-    };
-}
-
-// عند التحميل: جهّز شبكة الكتالوقات لو وصلنا مباشرة لشاشة الإعداد
+// ========================================================= عند التحميل =========================================================
 document.addEventListener('DOMContentLoaded', () => {
-    renderCatalogGrid();
+    // لو فيه لعبة جارية على نفس الجهاز (تحديث الصفحة بالغلط)، نرجعها بدل ما نبدأ من الصفر
+    const resumed = tryResumeLocalGame();
+    if (!resumed) renderCatalogGrid();
 });

@@ -105,6 +105,11 @@
     <div class="round-hub">
         <div class="round-pill">سؤال <span id="qNum">1</span> / <span id="qTotal">0</span></div>
         <div class="cat-pill"><span id="qCatEmoji">🧩</span><span id="qCatName">—</span></div>
+        <div class="room-pill">
+            🔑 كود الغرفة: <strong id="roomCodeText">—</strong>
+            <button class="mini-copy-btn" id="copyRoomBtn" onclick="copyRoomCode()">نسخ</button>
+            <a id="judgeLinkBtn" class="mini-link-btn" href="judge.html" target="_blank">⚖️ فتح لوحة الحكم بهذا الكود</a>
+        </div>
     </div>
 
     <div class="stage">
@@ -121,7 +126,7 @@
 <section id="podiumScreen" class="screen">
     <div class="podium-title">🏆 النتيجة النهائية</div>
     <div class="ranking-list" id="rankingList"></div>
-    <button class="big-btn primary" style="max-width:300px;" onclick="location.reload()">
+    <button class="big-btn primary" style="max-width:300px;" onclick="clearLocalResume(); location.reload()">
         <span class="icon">🔄</span>
         <span class="label"><strong>لعبة جديدة</strong></span>
     </button>
@@ -142,6 +147,8 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="room-sync.js"></script>
 <script src="questions.js"></script>
 <script src="script.js"></script>
 </body>
