@@ -563,7 +563,7 @@ function scheduleDuelFinish() {
 function finishDuel() {
     if (!gameState.duel) return;
     gameState.duel = null;
-    gameState.optionsShown = true;
+    gameState.optionsShown = false;
     gameState.revealedCorrect = false;
     gameState.result = null;
     pushFullState();
