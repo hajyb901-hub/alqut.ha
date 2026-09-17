@@ -140,7 +140,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="room-sync.js"></script>
+<script src="room-sync.js?v=20260917"></script>
 <script>
 let roomSync = null;
 
@@ -163,7 +163,17 @@ function connectToRoom(code) {
     roomSync.startPolling(2500);
 
     // نجيب آخر حالة محفوظة فور الاتصال (يغطي حالة إن اللعبة بدت قبل ما نفتح لوحة الحكم)
-    roomSync.fetchState().then(state => { if (state) applyState(state); });
+    // نعطي أولوية للحالة المحلية للتبويب نفسه، ثم نستخدم Supabase كحل للتواصل بين الأجهزة.
+    try {
+        const local = JSON.parse(localStorage.getItem('laqtaha_room_' + code) || 'null');
+        if (local) applyState(local);
+    } catch (_) {}
+    roomSync.fetchState().then(saved => {
+        if (saved) applyState(saved);
+        else {
+            document.getElementById('emptyState').textContent = 'لم تصل حالة الغرفة بعد. تأكد أن شاشة اللعب بدأت بنفس الكود، ثم انتظر لحظة… 📸';
+        }
+    });
 }
 
 function updateConnectionStatus(status) {

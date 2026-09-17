@@ -31,6 +31,9 @@ class RoomSync {
         this.onStatusChange = null; // (status) => {}
         this.pollTimer = null;
         this.lastStateJson = null;
+        this.subscribed = false;
+        this.storageKey = 'laqtaha_room_' + this.roomCode;
+        this.broadcastChannel = null;
     }
 
     // يفتح قناة البث المباشر لهذي الغرفة ويشترك فيها
@@ -49,8 +52,34 @@ class RoomSync {
 
         this.channel.subscribe((status) => {
             console.log('[RoomSync] channel status:', status);
+            this.subscribed = status === 'SUBSCRIBED';
             if (this.onStatusChange) this.onStatusChange(status);
         });
+
+        // مزامنة إضافية للتبويبات على نفس الجهاز، بدون الاعتماد على Supabase وحده.
+        try {
+            window.addEventListener('storage', this._storageHandler = (e) => {
+                if (e.key !== this.storageKey || !e.newValue) return;
+                try {
+                    const state = JSON.parse(e.newValue);
+                    const json = JSON.stringify(state);
+                    if (json === this.lastStateJson) return;
+                    this.lastStateJson = json;
+                    if (this.onStateUpdate) this.onStateUpdate(state);
+                } catch (_) {}
+            });
+            if ('BroadcastChannel' in window) {
+                this.broadcastChannel = new BroadcastChannel(this.storageKey);
+                this.broadcastChannel.onmessage = (e) => {
+                    const state = e.data;
+                    if (!state) return;
+                    const json = JSON.stringify(state);
+                    if (json === this.lastStateJson) return;
+                    this.lastStateJson = json;
+                    if (this.onStateUpdate) this.onStateUpdate(state);
+                };
+            }
+        } catch (_) {}
         return this.channel;
     }
 
@@ -62,8 +91,12 @@ class RoomSync {
                 .select('state')
                 .eq('room_code', this.roomCode)
                 .maybeSingle();
-            if (error) { console.error('[RoomSync] fetchState error:', error); return null; }
-            return data ? data.state : null;
+            if (error) {
+                console.error('[RoomSync] fetchState error:', error);
+                try { return JSON.parse(localStorage.getItem(this.storageKey) || 'null'); } catch (_) { return null; }
+            }
+            if (data?.state) return data.state;
+            try { return JSON.parse(localStorage.getItem(this.storageKey) || 'null'); } catch (_) { return null; }
         } catch (e) {
             console.error('[RoomSync] fetchState exception:', e);
             return null;
@@ -97,6 +130,10 @@ class RoomSync {
     // يرسل الحالة الكاملة مباشرة عبر القناة، وبنفس الوقت يحفظها بقاعدة البيانات
     async pushState(state) {
         this.lastStateJson = JSON.stringify(state);
+        try {
+            localStorage.setItem(this.storageKey, this.lastStateJson);
+            if (this.broadcastChannel) this.broadcastChannel.postMessage(state);
+        } catch (_) {}
         if (this.channel) {
             try { await this.channel.send({ type: 'broadcast', event: 'state_update', payload: state }); }
             catch (e) { console.warn('[RoomSync] broadcast state failed:', e); }
@@ -125,6 +162,10 @@ class RoomSync {
 
     disconnect() {
         this.stopPolling();
+        try {
+            if (this._storageHandler) window.removeEventListener('storage', this._storageHandler);
+            if (this.broadcastChannel) { this.broadcastChannel.close(); this.broadcastChannel = null; }
+        } catch (_) {}
         if (this.channel) {
             supabaseClient.removeChannel(this.channel);
             this.channel = null;

@@ -194,7 +194,7 @@ function startGame() {
     gameState.roomCode = generateRoomCode();
     gameState.currentIndex = 0;
     gameState.activePlayerId = gameState.players[0]?.id || null;
-    gameState.optionsShown = false;
+    gameState.optionsShown = true;
     gameState.revealedCorrect = false;
     gameState.result = null;
     gameState.status = 'playing';
@@ -529,8 +529,17 @@ function handleJudgeAction(msg) {
 // ========================================================= عند التحميل
 
 document.addEventListener('DOMContentLoaded', () => {
-    const resumed = tryResumeLocalGame();
+    // لا نرجع لجولة قديمة تلقائياً؛ هذا كان يمنع ظهور اختيار الكاتاغوري وعدد الأسئلة.
+    // إذا احتجت استئناف الجولة الحالية يمكن فتح الصفحة بـ ?resume=1
+    const shouldResume = new URLSearchParams(window.location.search).get('resume') === '1';
+    const resumed = shouldResume ? tryResumeLocalGame() : false;
     if (!resumed) {
+        clearLocalResume();
+        gameState = {
+            roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
+            deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
+            result: null, status: 'setup', duel: null, nextDuelAt: null
+        };
         renderCatalogGrid();
         goToSetupStep(1);
     }
