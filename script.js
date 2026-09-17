@@ -66,6 +66,20 @@ function showScreen(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('active');
 }
+
+function goHome() {
+    if (nextQuestionTimer) { clearTimeout(nextQuestionTimer); nextQuestionTimer = null; }
+    if (duelTimer) { clearTimeout(duelTimer); duelTimer = null; }
+    if (duelUiTimer) { clearTimeout(duelUiTimer); duelUiTimer = null; }
+    if (roomSync) { roomSync.disconnect(); roomSync = null; }
+    clearLocalResume();
+    gameState = {
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
+        deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
+        result: null, status: 'setup', duel: null, nextDuelAt: null
+    };
+    showScreen('startScreen');
+}
 function showAbout() {
     const modal = document.getElementById('aboutModal');
     if (modal) modal.style.display = 'flex';
@@ -493,7 +507,7 @@ function handleJudgeAction(msg) {
         }
         case 'wrong':
             gameState.optionsShown = true;
-            gameState.revealedCorrect = true;
+            gameState.revealedCorrect = false;
             gameState.result = 'wrong';
             playFlash('wrong');
             break;
@@ -529,18 +543,12 @@ function handleJudgeAction(msg) {
 // ========================================================= عند التحميل
 
 document.addEventListener('DOMContentLoaded', () => {
-    // لا نرجع لجولة قديمة تلقائياً؛ هذا كان يمنع ظهور اختيار الكاتاغوري وعدد الأسئلة.
-    // إذا احتجت استئناف الجولة الحالية يمكن فتح الصفحة بـ ?resume=1
-    const shouldResume = new URLSearchParams(window.location.search).get('resume') === '1';
-    const resumed = shouldResume ? tryResumeLocalGame() : false;
-    if (!resumed) {
-        clearLocalResume();
-        gameState = {
-            roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
-            deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
-            result: null, status: 'setup', duel: null, nextDuelAt: null
-        };
-        renderCatalogGrid();
-        goToSetupStep(1);
-    }
+    // الصفحة الرئيسية هي نقطة الدخول دائمًا؛ لا نستأنف جولة قديمة تلقائيًا.
+    clearLocalResume();
+    gameState = {
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
+        deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
+        result: null, status: 'setup', duel: null, nextDuelAt: null
+    };
+    showScreen('startScreen');
 });

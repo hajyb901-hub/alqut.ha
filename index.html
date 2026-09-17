@@ -63,7 +63,7 @@
             <p class="hint">اختر كتالوق واحد أو أكثر — الأسئلة بتنسحب منها كلها مع بعض</p>
             <div class="catalog-grid" id="catalogGrid"></div>
             <div class="setup-nav" style="margin-top:22px;">
-                <span></span>
+                <button class="nav-btn ghost" onclick="goHome()">🏠 الرئيسية</button>
                 <button class="nav-btn solid" id="toStep2Btn" onclick="goToSetupStep(2)" disabled>التالي ←</button>
             </div>
         </div>
@@ -127,6 +127,7 @@
             🔑 كود الغرفة: <strong id="roomCodeText">—</strong>
             <button class="mini-copy-btn" id="copyRoomBtn" onclick="copyRoomCode()">نسخ</button>
             <a id="judgeLinkBtn" class="mini-link-btn" href="judge.html" target="_blank">⚖️ فتح لوحة الحكم بهذا الكود</a>
+            <button class="mini-link-btn game-home-btn" onclick="goHome()">🏠 الرئيسية</button>
         </div>
     </div>
 
