@@ -24,7 +24,9 @@ let gameState = {
     revealedCorrect: false,
     result: null, // correct | wrong | null
     status: 'setup',
-    duel: null, // { playerIds:[id,id], endsAt:number, questionIndex:number }
+    duel: null, // { playerIds:[id,id], phase, introEndsAt, countdownEndsAt, endsAt, questionIndex }
+    duelPresentation: null,
+    duelSchedule: [],
     nextDuelAt: null
 };
 
@@ -77,7 +79,7 @@ function goHome() {
     gameState = {
         roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
-        result: null, status: 'setup', duel: null, nextDuelAt: null
+        result: null, status: 'setup', duel: null, duelPresentation: null, duelSchedule: [], nextDuelAt: null
     };
     showScreen('startScreen');
 }
@@ -195,14 +197,14 @@ function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
-function getLocalDifficulty(catalogId, questionIndex) {
-    if (catalogId === 'religion') return 'hard';
-    // الأسئلة الجديدة في كل كتالوق صيغت كمستوى سهل، والأسئلة الأصلية كمتوسط.
+function getLocalDifficulty(catalogId, questionIndex, question) {
+    if (question?.difficulty) return question.difficulty;
+    // احتياطي للبنوك القديمة التي لا تحمل مستوى السؤال.
     return questionIndex >= 12 ? 'easy' : 'medium';
 }
 
 function difficultyMatches(questionDifficulty, selectedDifficulty, catalogId) {
-    if (catalogId === 'religion') return questionDifficulty === 'hard' || !questionDifficulty;
+    if (catalogId === 'religion' && !questionDifficulty) return true;
     if (selectedDifficulty === 'mixed') return true;
     if (selectedDifficulty === 'easy') return questionDifficulty === 'easy';
     if (selectedDifficulty === 'medium') return questionDifficulty === 'easy' || questionDifficulty === 'medium';
@@ -257,7 +259,7 @@ function buildLocalDeck() {
         const cat = CATALOGS[id];
         if (!cat) return;
         cat.questions.forEach((qq, qi) => {
-            const difficulty = getLocalDifficulty(id, qi);
+            const difficulty = getLocalDifficulty(id, qi, qq);
             if (!difficultyMatches(difficulty, gameState.difficulty, id)) return;
             const normalized = normalizeQuestion({ ...qq, difficulty }, id, cat);
             if (normalized) pool.push(normalized);
@@ -295,13 +297,16 @@ async function startGame() {
     gameState.result = null;
     gameState.status = 'playing';
     gameState.duel = null;
-    gameState.nextDuelAt = gameState.playerCount >= 3 && gameState.deck.length >= 3 ? randomInt(3, Math.min(5, gameState.deck.length)) : null;
+    gameState.duelPresentation = null;
+    gameState.duelSchedule = buildDuelSchedule(gameState.deck.length, gameState.playerCount);
+    gameState.nextDuelAt = gameState.duelSchedule[0] || null;
 
     connectRoom(gameState.roomCode);
     renderRoomBadge();
     pushFullState();
     showScreen('gameScreen');
     renderGameScreen();
+    if (gameState.duelSchedule.includes(1)) startDuel();
 }
 
 function connectRoom(code) {
@@ -361,9 +366,12 @@ function renderPlayersBar() {
     const bar = document.getElementById('playersBar');
     if (!bar) return;
     bar.innerHTML = '';
-    gameState.players.forEach(p => {
+    const duelIds = gameState.duel?.playerIds || gameState.duelPresentation?.playerIds || null;
+    const visiblePlayers = duelIds ? gameState.players.filter(p => duelIds.includes(p.id)) : gameState.players;
+    bar.classList.toggle('duel-only', !!duelIds);
+    visiblePlayers.forEach(p => {
         const chip = document.createElement('div');
-        const inDuel = gameState.duel?.playerIds?.includes(p.id);
+        const inDuel = !!duelIds?.includes(p.id);
         chip.className = 'player-chip' + (p.id === gameState.activePlayerId ? ' active-turn' : '') + (inDuel ? ' duel-player' : '');
         const scoreChanged = lastScores[p.id] !== undefined && lastScores[p.id] !== p.score;
         chip.innerHTML = `<span class="p-avatar">${p.avatar}</span><span class="p-info"><span class="p-name">${escapeHtml(p.name)}</span><span class="p-score${scoreChanged ? ' bump' : ''}">${p.score}</span></span>${inDuel ? '<span class="duel-dot">VS</span>' : ''}`;
@@ -374,11 +382,14 @@ function renderPlayersBar() {
 
 function renderGameScreen() {
     if (gameState.status === 'over') {
+        document.body.classList.remove('duel-question-mode');
         renderPodium();
         showScreen('podiumScreen');
         return;
     }
     renderPlayersBar();
+    const currentDuelQuestion = !!gameState.duelPresentation && gameState.duelPresentation.questionIndex === gameState.currentIndex;
+    document.body.classList.toggle('duel-question-mode', currentDuelQuestion && !gameState.duel);
     const total = gameState.deck.length;
     const qNum = document.getElementById('qNum');
     const qTotal = document.getElementById('qTotal');
@@ -392,14 +403,17 @@ function renderGameScreen() {
     document.getElementById('questionText').textContent = current.q;
 
     const duelInfo = document.getElementById('duelInfo');
+    const duelPair = gameState.duel?.playerIds || gameState.duelPresentation?.playerIds || null;
     if (duelInfo) {
-        if (gameState.duel) {
-            const a = gameState.players.find(p => p.id === gameState.duel.playerIds[0]);
-            const b = gameState.players.find(p => p.id === gameState.duel.playerIds[1]);
-            duelInfo.innerHTML = `⚡ مواجهة: <strong>${escapeHtml(a?.name || '')}</strong> ضد <strong>${escapeHtml(b?.name || '')}</strong>`;
-            duelInfo.style.display = 'block';
+        if (duelPair) {
+            const a = gameState.players.find(p => p.id === duelPair[0]);
+            const b = gameState.players.find(p => p.id === duelPair[1]);
+            duelInfo.innerHTML = `<span class="duel-strip-player">${a?.avatar || '👤'} ${escapeHtml(a?.name || 'لاعب')}</span><span class="vs-inline"><i>V</i><i>S</i></span><span class="duel-strip-player">${b?.avatar || '👤'} ${escapeHtml(b?.name || 'لاعب')}</span>`;
+            duelInfo.style.display = 'flex';
+            duelInfo.classList.toggle('question-duel-strip', !gameState.duel);
         } else {
             duelInfo.style.display = 'none';
+            duelInfo.classList.remove('question-duel-strip');
         }
     }
 
@@ -448,6 +462,7 @@ function renderDuelOverlay() {
     if (!overlay) return;
     if (!gameState.duel) {
         overlay.classList.remove('show');
+        overlay.removeAttribute('data-phase');
         if (duelUiTimer) { clearInterval(duelUiTimer); duelUiTimer = null; }
         return;
     }
@@ -458,10 +473,15 @@ function renderDuelOverlay() {
     const cEl = document.getElementById('duelCountdown');
     if (aEl) aEl.innerHTML = `<span class="duel-avatar">${a?.avatar || '👤'}</span><strong>${escapeHtml(a?.name || 'لاعب')}</strong>`;
     if (bEl) bEl.innerHTML = `<span class="duel-avatar">${b?.avatar || '👤'}</span><strong>${escapeHtml(b?.name || 'لاعب')}</strong>`;
+    overlay.dataset.phase = gameState.duel.phase || 'intro';
     overlay.classList.add('show');
     const tick = () => {
         if (!gameState.duel) return;
-        const seconds = Math.max(1, Math.ceil((gameState.duel.endsAt - Date.now()) / 1000));
+        const now = Date.now();
+        let seconds = 3;
+        if (gameState.duel.phase === 'countdown') {
+            seconds = Math.max(1, Math.ceil((gameState.duel.endsAt - now) / 1000));
+        }
         if (cEl) cEl.textContent = seconds;
     };
     tick();
@@ -475,19 +495,47 @@ function updateResultGlow() {
     if (gameState.result === 'wrong') document.body.classList.add('answer-wrong');
 }
 
+function buildDuelSchedule(totalQuestions, playerCount) {
+    if (playerCount < 3 || totalQuestions < 3) return [];
+    const schedule = [];
+    const third = Math.ceil(totalQuestions / 3);
+    for (let t = 0; t < 3; t++) {
+        const start = t * third + 1;
+        const end = Math.min(totalQuestions, (t + 1) * third);
+        if (start > end) continue;
+        const choices = [];
+        for (let n = start; n <= end; n++) choices.push(n);
+        // مواجهة واحدة بالضبط داخل كل ثلث، ما دام الثلث يحتوي أسئلة.
+        schedule.push(choices[randomInt(0, choices.length - 1)]);
+    }
+    return schedule.sort((a,b) => a-b);
+}
+
 function startDuel() {
     if (gameState.playerCount < 3 || gameState.players.length < 3) return;
+    if (gameState.duel) return;
+    const questionNumber = gameState.currentIndex + 1;
+    const scheduled = gameState.duelSchedule || [];
+    if (!scheduled.includes(questionNumber)) return;
     const pair = shuffleArray(gameState.players).slice(0, 2);
+    const now = Date.now();
+    const introEndsAt = now + 2800;
+    const countdownEndsAt = introEndsAt + 3000;
     gameState.duel = {
         playerIds: pair.map(p => p.id),
-        endsAt: Date.now() + 3300,
+        phase: 'intro',
+        introEndsAt,
+        countdownEndsAt,
+        endsAt: countdownEndsAt,
         questionIndex: gameState.currentIndex
     };
+    gameState.duelPresentation = { playerIds: pair.map(p => p.id), questionIndex: gameState.currentIndex };
     gameState.activePlayerId = pair[0].id;
     gameState.optionsShown = false;
     gameState.revealedCorrect = false;
     gameState.result = null;
-    gameState.nextDuelAt = null;
+    const idx = scheduled.indexOf(questionNumber);
+    gameState.nextDuelAt = scheduled[idx + 1] || null;
     pushFullState();
     renderGameScreen();
     scheduleDuelFinish();
@@ -496,12 +544,20 @@ function startDuel() {
 function scheduleDuelFinish() {
     if (duelTimer) clearTimeout(duelTimer);
     if (!gameState.duel) return;
-    const remaining = Math.max(0, gameState.duel.endsAt - Date.now());
-    if (remaining <= 0) {
-        finishDuel();
-        return;
-    }
-    duelTimer = setTimeout(finishDuel, remaining + 30);
+    const now = Date.now();
+    const target = gameState.duel.phase === 'intro' ? gameState.duel.introEndsAt : gameState.duel.endsAt;
+    const remaining = Math.max(0, target - now);
+    duelTimer = setTimeout(() => {
+        if (!gameState.duel) return;
+        if (gameState.duel.phase === 'intro') {
+            gameState.duel.phase = 'countdown';
+            pushFullState();
+            renderGameScreen();
+            scheduleDuelFinish();
+        } else {
+            finishDuel();
+        }
+    }, remaining + 40);
 }
 
 function finishDuel() {
@@ -509,6 +565,7 @@ function finishDuel() {
     gameState.duel = null;
     gameState.optionsShown = true;
     gameState.revealedCorrect = false;
+    gameState.result = null;
     pushFullState();
     renderGameScreen();
 }
@@ -531,6 +588,7 @@ function advanceAfterCorrect() {
 
 function moveNextQuestion() {
     gameState.duel = null;
+    gameState.duelPresentation = null;
     gameState.result = null;
     gameState.optionsShown = false;
     gameState.revealedCorrect = false;
@@ -543,7 +601,7 @@ function moveNextQuestion() {
     }
     gameState.currentIndex += 1;
     gameState.activePlayerId = gameState.players[(gameState.currentIndex) % gameState.players.length]?.id || gameState.activePlayerId;
-    if (gameState.playerCount >= 3 && gameState.currentIndex + 1 >= (gameState.nextDuelAt || Infinity)) {
+    if (gameState.playerCount >= 3 && (gameState.duelSchedule || []).includes(gameState.currentIndex + 1)) {
         startDuel();
         return;
     }
@@ -579,8 +637,7 @@ function handleJudgeAction(msg) {
             gameState.revealedCorrect = true;
             gameState.result = 'correct';
             gameState.duel = null;
-            gameState.nextDuelAt = gameState.currentIndex + 1 + randomInt(2, 4);
-            if (gameState.nextDuelAt > gameState.deck.length) gameState.nextDuelAt = null;
+            if (!gameState.duelPresentation) gameState.duelPresentation = null;
             playFlash('correct');
             pushFullState();
             renderGameScreen();
@@ -606,6 +663,7 @@ function handleJudgeAction(msg) {
             if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
             if (gameState.currentIndex > 0) gameState.currentIndex -= 1;
             gameState.duel = null;
+            gameState.duelPresentation = null;
             gameState.nextDuelAt = null;
             gameState.optionsShown = false;
             gameState.revealedCorrect = false;
@@ -630,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
     gameState = {
         roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
-        result: null, status: 'setup', duel: null, nextDuelAt: null
+        result: null, status: 'setup', duel: null, duelPresentation: null, duelSchedule: [], nextDuelAt: null
     };
     showScreen('startScreen');
 });

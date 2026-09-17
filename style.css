@@ -528,3 +528,45 @@ button, .p-tab, .catalog-chip, .option-card, .mini-btn{ min-height:44px; }
   .setup-three{grid-template-columns:1fr;}
   .floating-tip{left:10px;bottom:10px;font-size:.72rem;}
 }
+
+
+/* =========================================================
+   مواجهة VS — دخول سينمائي + عد تنازلي + سؤال المواجهة
+   ========================================================= */
+.duel-overlay{background:radial-gradient(circle at 50% 45%,rgba(18,28,52,.92),rgba(2,5,12,.975) 72%);}
+.duel-overlay::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 48%,rgba(255,214,10,.08),transparent 28%),radial-gradient(circle at 50% 48%,rgba(34,211,238,.06),transparent 48%);animation:duelAura 2.8s ease-in-out infinite;pointer-events:none;}
+.duel-shell{position:relative;z-index:1;}
+.duel-player-card{position:relative;overflow:hidden;box-shadow:0 0 28px rgba(34,211,238,.14),inset 0 0 28px rgba(255,255,255,.02);}
+.duel-player-card::after{content:"";position:absolute;inset:-30%;background:radial-gradient(circle,rgba(34,211,238,.11),transparent 58%);animation:duelCardFloat 2.4s ease-in-out infinite;pointer-events:none;}
+.duel-overlay[data-phase="countdown"] .duel-player-card:first-child{animation:duelExitA .6s cubic-bezier(.6,0,.8,.2) both;}
+.duel-overlay[data-phase="countdown"] .duel-player-card:last-child{animation:duelExitB .6s cubic-bezier(.6,0,.8,.2) both;}
+.duel-overlay[data-phase="countdown"] .vs-badge{animation:vsExit .55s ease both;}
+.duel-overlay[data-phase="intro"] .duel-countdown{opacity:.25;transform:scale(.7);}
+.duel-overlay[data-phase="countdown"] .duel-countdown{opacity:1;animation:countdownPop .9s ease-in-out infinite;}
+.duel-countdown{position:relative;z-index:2;}
+.duel-countdown::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(255,214,10,.35);animation:countdownRing 1s linear infinite;}
+.vs-badge{display:flex;gap:2px;}
+.vs-badge .vs-v,.vs-inline i:first-child{color:var(--yellow);text-shadow:0 0 16px var(--yellow-glow);font-style:normal;}
+.vs-badge .vs-s,.vs-inline i:last-child{color:var(--cyan);text-shadow:0 0 16px var(--cyan-glow);font-style:normal;}
+body.duel-question-mode .question-card{animation:duelQuestionFloat 2.2s ease-in-out infinite, duelQuestionPulse 1.35s ease-in-out infinite;}
+body.duel-question-mode::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:55;background:rgba(248,113,113,.055);animation:duelRedPulse 1.35s ease-in-out infinite;}
+.duel-info.question-duel-strip{width:min(760px,94vw);margin:0 auto 14px;justify-content:center;gap:18px;border-radius:18px;padding:10px 16px;background:rgba(12,18,32,.82);box-shadow:0 0 24px rgba(255,214,10,.1),0 8px 25px rgba(0,0,0,.22);}
+.duel-strip-player{display:flex;align-items:center;gap:7px;font-weight:900;animation:duelStripFloat 1.9s ease-in-out infinite;}
+.duel-strip-player:last-child{animation-delay:.2s;}
+.vs-inline{display:flex;gap:1px;font-family:var(--font-display);font-size:1.15rem;font-weight:1000;animation:vsFloat 1.2s ease-in-out infinite alternate;}
+.player-chip.duel-player{animation:duelChipFloat 1.7s ease-in-out infinite;}
+.players-bar.duel-only{justify-content:center;grid-template-columns:repeat(2,minmax(150px,260px));}
+@keyframes duelAura{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes duelCardFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes duelExitA{to{opacity:0;transform:translateX(120vw) rotate(5deg) scale(.8)}}
+@keyframes duelExitB{to{opacity:0;transform:translateX(-120vw) rotate(-5deg) scale(.8)}}
+@keyframes vsExit{to{opacity:0;transform:scale(1.7) rotate(12deg)}}
+@keyframes countdownPop{0%,100%{transform:scale(.94);box-shadow:0 0 28px var(--yellow-glow)}50%{transform:scale(1.06);box-shadow:0 0 48px var(--yellow-glow)}}
+@keyframes countdownRing{to{transform:scale(1.28);opacity:0}}
+@keyframes duelQuestionFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(.15deg)}}
+@keyframes duelQuestionPulse{0%,100%{box-shadow:0 0 28px rgba(248,113,113,.15),inset 0 0 20px rgba(248,113,113,.02)}50%{box-shadow:0 0 42px rgba(248,113,113,.28),inset 0 0 28px rgba(248,113,113,.05)}}
+@keyframes duelRedPulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes duelStripFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes vsFloat{from{transform:translateY(-2px) scale(.98)}to{transform:translateY(2px) scale(1.06)}}
+@keyframes duelChipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@media (prefers-reduced-motion:reduce){.duel-overlay *,body.duel-question-mode *{animation-duration:.001ms!important;animation-iteration-count:1!important;}}
