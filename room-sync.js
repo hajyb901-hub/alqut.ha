@@ -28,6 +28,9 @@ class RoomSync {
         this.channel = null;
         this.onStateUpdate = null;  // (state) => {}
         this.onJudgeAction = null;  // (payload) => {}
+        this.onStatusChange = null; // (status) => {}
+        this.pollTimer = null;
+        this.lastStateJson = null;
     }
 
     // يفتح قناة البث المباشر لهذي الغرفة ويشترك فيها
@@ -44,7 +47,10 @@ class RoomSync {
             if (this.onJudgeAction) this.onJudgeAction(msg.payload);
         });
 
-        this.channel.subscribe();
+        this.channel.subscribe((status) => {
+            console.log('[RoomSync] channel status:', status);
+            if (this.onStatusChange) this.onStatusChange(status);
+        });
         return this.channel;
     }
 
@@ -64,10 +70,36 @@ class RoomSync {
         }
     }
 
+
+    // مزامنة احتياطية: إذا فات جهازٌ حدث Broadcast بسبب انقطاع لحظي،
+    // نقرأ آخر حالة محفوظة من قاعدة البيانات كل بضع ثوانٍ.
+    startPolling(interval = 2500) {
+        this.stopPolling();
+        const poll = async () => {
+            const state = await this.fetchState();
+            if (!state) return;
+            const json = JSON.stringify(state);
+            if (json === this.lastStateJson) return;
+            this.lastStateJson = json;
+            if (this.onStateUpdate) this.onStateUpdate(state);
+        };
+        poll();
+        this.pollTimer = setInterval(poll, interval);
+    }
+
+    stopPolling() {
+        if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            this.pollTimer = null;
+        }
+    }
+
     // يرسل الحالة الكاملة مباشرة عبر القناة، وبنفس الوقت يحفظها بقاعدة البيانات
     async pushState(state) {
+        this.lastStateJson = JSON.stringify(state);
         if (this.channel) {
-            this.channel.send({ type: 'broadcast', event: 'state_update', payload: state });
+            try { await this.channel.send({ type: 'broadcast', event: 'state_update', payload: state }); }
+            catch (e) { console.warn('[RoomSync] broadcast state failed:', e); }
         }
         try {
             const { error } = await supabaseClient
@@ -80,13 +112,19 @@ class RoomSync {
     }
 
     // ترسلها لوحة الحكم لشاشة اللعب (صحيح/غلط/تالي/إلخ)
-    sendJudgeAction(payload) {
-        if (this.channel) {
-            this.channel.send({ type: 'broadcast', event: 'judge_action', payload });
+    async sendJudgeAction(payload) {
+        if (!this.channel) return false;
+        try {
+            await this.channel.send({ type: 'broadcast', event: 'judge_action', payload });
+            return true;
+        } catch (e) {
+            console.error('[RoomSync] judge action failed:', e);
+            return false;
         }
     }
 
     disconnect() {
+        this.stopPolling();
         if (this.channel) {
             supabaseClient.removeChannel(this.channel);
             this.channel = null;

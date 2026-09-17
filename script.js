@@ -1,31 +1,35 @@
 // =========================================================
 // لقطتها 📸 — محرك اللعبة
-// المزامنة بين شاشة اللعب ولوحة الحكم عبر نظام الغرف (Supabase Realtime)
-// كل لعبة تاخذ كود غرفة عشوائي — تشتغل بين أي جهازين على أي شبكة
+// شاشة اللعب + لوحة الحكم عبر Supabase Realtime
 // =========================================================
 
 const AVATAR_POOL = ['🦁', '🐯', '🐼', '🦊', '🐸', '🦉', '🐺', '🐨'];
-const LOCAL_RESUME_KEY = 'laqtaha_local_resume_v1'; // نسخة محلية فقط لاسترجاع نفس الجهاز بعد تحديث الصفحة
+const LOCAL_RESUME_KEY = 'laqtaha_local_resume_v2';
 
-let roomSync = null; // كائن مزامنة الغرفة (يُنشأ عند بدء اللعبة)
-
+let roomSync = null;
+let duelTimer = null;
+let duelUiTimer = null;
+let nextQuestionTimer = null;
 let gameState = {
     roomCode: null,
     selectedCatalogs: [],
+    questionCount: 15,
     playerCount: 4,
-    players: [],       // {id, name, avatar, score}
-    deck: [],          // {catalogId, q, options, a}
+    players: [],
+    deck: [],
     currentIndex: 0,
     activePlayerId: null,
     optionsShown: false,
     revealedCorrect: false,
-    status: 'setup'    // setup | playing | over
+    result: null, // correct | wrong | null
+    status: 'setup',
+    duel: null, // { playerIds:[id,id], endsAt:number, questionIndex:number }
+    nextDuelAt: null
 };
 
-let lastScores = {};       // لتتبّع تغيّر النقاط وتشغيل حركة "القفزة" عليها فقط
-let lastQuestionKey = null; // لإعادة تشغيل حركة دخول بطاقة السؤال عند تغيّرها فعلياً
+let lastScores = {};
+let lastQuestionKey = null;
 
-// إعادة تشغيل حركة CSS على عنصر معيّن (يفيد لما يتغيّر محتوى نفس العنصر دون إعادة إنشائه)
 function replayAnimation(el) {
     if (!el) return;
     el.style.animation = 'none';
@@ -33,7 +37,6 @@ function replayAnimation(el) {
     el.style.animation = '';
 }
 
-// ---------- أدوات عامة ----------
 function shuffleArray(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -43,77 +46,100 @@ function shuffleArray(arr) {
     return a;
 }
 
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 function saveLocalResume() {
     try { localStorage.setItem(LOCAL_RESUME_KEY, JSON.stringify(gameState)); } catch (e) {}
 }
-
 function clearLocalResume() {
     try { localStorage.removeItem(LOCAL_RESUME_KEY); } catch (e) {}
 }
-
 function pushFullState() {
     saveLocalResume();
     if (roomSync) roomSync.pushState(gameState);
 }
 
-// ========================================================= شاشة البداية والانتقال بين الشاشات =========================================================
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+}
+function showAbout() {
+    const modal = document.getElementById('aboutModal');
+    if (modal) modal.style.display = 'flex';
+}
+function closeAbout() {
+    const modal = document.getElementById('aboutModal');
+    if (modal) modal.style.display = 'none';
 }
 
-function showAbout() { document.getElementById('aboutModal').style.display = 'flex'; }
-
-// ========================================================= خطوات الإعداد =========================================================
+// ========================================================= إعداد الجولة
 function renderCatalogGrid() {
     const grid = document.getElementById('catalogGrid');
+    if (!grid) return;
     grid.innerHTML = '';
     Object.keys(CATALOGS).forEach(id => {
         const cat = CATALOGS[id];
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'catalog-chip' + (gameState.selectedCatalogs.includes(id) ? ' selected' : '');
-        chip.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span class="cat-name">${cat.name}</span>`;
+        chip.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span class="cat-name">${cat.name}</span><span class="cat-count">${cat.questions.length} سؤال</span>`;
         chip.onclick = () => toggleCatalog(id);
         grid.appendChild(chip);
     });
+    const btn = document.getElementById('toStep2Btn');
+    if (btn) btn.disabled = gameState.selectedCatalogs.length === 0;
 }
 
 function toggleCatalog(id) {
     const i = gameState.selectedCatalogs.indexOf(id);
-    if (i === -1) gameState.selectedCatalogs.push(id); else gameState.selectedCatalogs.splice(i, 1);
+    if (i === -1) gameState.selectedCatalogs.push(id);
+    else gameState.selectedCatalogs.splice(i, 1);
     renderCatalogGrid();
-    document.getElementById('toStep2Btn').disabled = gameState.selectedCatalogs.length === 0;
 }
 
 function goToSetupStep(step) {
     showScreen('setupScreen');
-    document.getElementById('stepCatalogs').style.display = step === 1 ? 'block' : 'none';
-    document.getElementById('stepCount').style.display = step === 2 ? 'block' : 'none';
-    document.getElementById('stepNames').style.display = step === 3 ? 'block' : 'none';
-
+    ['stepCatalogs', 'stepCount', 'stepNames'].forEach((id, idx) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = step === idx + 1 ? 'block' : 'none';
+    });
     ['dot1', 'dot2', 'dot3'].forEach((id, idx) => {
         const dot = document.getElementById(id);
+        if (!dot) return;
         dot.classList.remove('done', 'current');
         if (idx + 1 < step) dot.classList.add('done');
         else if (idx + 1 === step) dot.classList.add('current');
     });
-
     if (step === 1) renderCatalogGrid();
-    document.getElementById('playerCountVal').textContent = gameState.playerCount;
+    const pc = document.getElementById('playerCountVal');
+    const qc = document.getElementById('questionCountVal');
+    if (pc) pc.textContent = gameState.playerCount;
+    if (qc) qc.textContent = gameState.questionCount;
 }
 
 function changePlayerCount(delta) {
     gameState.playerCount = Math.min(8, Math.max(2, gameState.playerCount + delta));
     const val = document.getElementById('playerCountVal');
-    val.textContent = gameState.playerCount;
-    replayAnimation(val);
+    if (val) { val.textContent = gameState.playerCount; replayAnimation(val); }
+}
+
+function changeQuestionCount(delta) {
+    const allowed = [5, 10, 15, 20, 25, 30, 40];
+    let idx = allowed.indexOf(gameState.questionCount);
+    idx = Math.min(allowed.length - 1, Math.max(0, idx + delta));
+    gameState.questionCount = allowed[idx];
+    const val = document.getElementById('questionCountVal');
+    if (val) { val.textContent = gameState.questionCount; replayAnimation(val); }
 }
 
 function renderPlayerNames() {
     const grid = document.getElementById('playersNameGrid');
+    if (!grid) return;
     grid.innerHTML = '';
-    const existing = gameState.players;
+    const existing = gameState.players || [];
     gameState.players = [];
     for (let i = 0; i < gameState.playerCount; i++) {
         const prev = existing[i];
@@ -124,38 +150,56 @@ function renderPlayerNames() {
             score: 0
         };
         gameState.players.push(player);
-
         const row = document.createElement('div');
         row.className = 'player-name-row';
-        row.innerHTML = `
-            <span class="p-avatar">${player.avatar}</span>
-            <input type="text" maxlength="16" value="${player.name}" data-idx="${i}">
-        `;
-        row.querySelector('input').addEventListener('input', (e) => {
+        row.innerHTML = `<span class="p-avatar">${player.avatar}</span><input type="text" maxlength="16" value="${escapeHtml(player.name)}" data-idx="${i}">`;
+        row.querySelector('input').addEventListener('input', e => {
             gameState.players[i].name = e.target.value.trim() || `لاعب ${i + 1}`;
         });
         grid.appendChild(row);
     }
 }
 
-// ========================================================= بناء مجموعة الأسئلة وبدء اللعبة =========================================================
+function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
 function buildDeck() {
     let pool = [];
     gameState.selectedCatalogs.forEach(id => {
         const cat = CATALOGS[id];
-        cat.questions.forEach(qq => pool.push({ catalogId: id, catName: cat.name, catEmoji: cat.emoji, q: qq.q, options: qq.options, a: qq.a }));
+        if (!cat) return;
+        cat.questions.forEach(qq => {
+            const indexed = qq.options.map((text, index) => ({ text, index }));
+            const mixed = shuffleArray(indexed);
+            pool.push({
+                catalogId: id,
+                catName: cat.name,
+                catEmoji: cat.emoji,
+                q: qq.q,
+                options: mixed.map(x => x.text),
+                a: mixed.findIndex(x => x.index === qq.a)
+            });
+        });
     });
-    gameState.deck = shuffleArray(pool);
+    gameState.deck = shuffleArray(pool).slice(0, Math.min(gameState.questionCount, pool.length));
 }
 
 function startGame() {
+    if (!gameState.selectedCatalogs.length) return;
+    renderPlayerNames();
     buildDeck();
+    if (!gameState.deck.length) return;
+
     gameState.roomCode = generateRoomCode();
     gameState.currentIndex = 0;
-    gameState.activePlayerId = gameState.players[0] ? gameState.players[0].id : null;
+    gameState.activePlayerId = gameState.players[0]?.id || null;
     gameState.optionsShown = false;
     gameState.revealedCorrect = false;
+    gameState.result = null;
     gameState.status = 'playing';
+    gameState.duel = null;
+    gameState.nextDuelAt = gameState.playerCount >= 3 && gameState.deck.length >= 3 ? randomInt(3, Math.min(5, gameState.deck.length)) : null;
 
     connectRoom(gameState.roomCode);
     renderRoomBadge();
@@ -164,19 +208,33 @@ function startGame() {
     renderGameScreen();
 }
 
-// يفتح قناة المزامنة مع لوحة الحكم على نفس كود الغرفة
 function connectRoom(code) {
     if (roomSync) roomSync.disconnect();
     roomSync = new RoomSync(code);
     roomSync.onJudgeAction = handleJudgeAction;
+    roomSync.onStatusChange = updateMainConnectionStatus;
     roomSync.connect();
+    roomSync.startPolling(2500);
+}
+
+function updateMainConnectionStatus(status) {
+    const footer = document.querySelector('.sync-footer');
+    if (!footer) return;
+    const labels = {
+        SUBSCRIBED: 'متصل بالغرفة — المزامنة مباشرة ✓',
+        CHANNEL_ERROR: 'تعذر الاتصال اللحظي — نحاول إعادة الاتصال…',
+        TIMED_OUT: 'انتهت مهلة الاتصال — نحاول مرة ثانية…',
+        CLOSED: 'انقطع الاتصال — نحاول إعادة الاتصال…'
+    };
+    footer.innerHTML = '<span class="live-dot"></span> ' + (labels[status] || 'يتحقق من اتصال الغرفة…');
+    footer.classList.toggle('sync-error', ['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status));
 }
 
 function renderRoomBadge() {
     const codeEl = document.getElementById('roomCodeText');
     const linkEl = document.getElementById('judgeLinkBtn');
-    if (codeEl) codeEl.textContent = gameState.roomCode;
-    if (linkEl) linkEl.href = 'judge.html?room=' + encodeURIComponent(gameState.roomCode);
+    if (codeEl) codeEl.textContent = gameState.roomCode || '—';
+    if (linkEl && gameState.roomCode) linkEl.href = 'judge.html?room=' + encodeURIComponent(gameState.roomCode);
 }
 
 function copyRoomCode() {
@@ -189,53 +247,65 @@ function copyRoomCode() {
     setTimeout(() => { btn.textContent = original; }, 1400);
 }
 
-// محاولة استرجاع اللعبة الجارية بعد تحديث الصفحة على نفس الجهاز
 function tryResumeLocalGame() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(LOCAL_RESUME_KEY) || 'null'); } catch (e) {}
-    if (!saved || saved.status !== 'playing' || !saved.roomCode) return false;
-
+    if (!saved || saved.status !== 'playing' || !saved.roomCode || !Array.isArray(saved.deck)) return false;
     gameState = saved;
     connectRoom(gameState.roomCode);
     renderRoomBadge();
     showScreen('gameScreen');
     renderGameScreen();
+    if (gameState.duel) scheduleDuelFinish();
     return true;
 }
 
-// ========================================================= عرض شاشة اللعب =========================================================
+// ========================================================= عرض اللعبة
 function renderPlayersBar() {
     const bar = document.getElementById('playersBar');
+    if (!bar) return;
     bar.innerHTML = '';
     gameState.players.forEach(p => {
         const chip = document.createElement('div');
-        chip.className = 'player-chip' + (p.id === gameState.activePlayerId ? ' active-turn' : '');
+        const inDuel = gameState.duel?.playerIds?.includes(p.id);
+        chip.className = 'player-chip' + (p.id === gameState.activePlayerId ? ' active-turn' : '') + (inDuel ? ' duel-player' : '');
         const scoreChanged = lastScores[p.id] !== undefined && lastScores[p.id] !== p.score;
-        chip.innerHTML = `
-            <span class="p-avatar">${p.avatar}</span>
-            <span class="p-info">
-                <span class="p-name">${p.name}</span>
-                <span class="p-score${scoreChanged ? ' bump' : ''}">${p.score}</span>
-            </span>`;
+        chip.innerHTML = `<span class="p-avatar">${p.avatar}</span><span class="p-info"><span class="p-name">${escapeHtml(p.name)}</span><span class="p-score${scoreChanged ? ' bump' : ''}">${p.score}</span></span>${inDuel ? '<span class="duel-dot">VS</span>' : ''}`;
         bar.appendChild(chip);
         lastScores[p.id] = p.score;
     });
 }
 
 function renderGameScreen() {
-    if (gameState.status === 'over') { renderPodium(); showScreen('podiumScreen'); return; }
-
+    if (gameState.status === 'over') {
+        renderPodium();
+        showScreen('podiumScreen');
+        return;
+    }
     renderPlayersBar();
     const total = gameState.deck.length;
-    document.getElementById('qNum').textContent = Math.min(gameState.currentIndex + 1, total);
-    document.getElementById('qTotal').textContent = total;
+    const qNum = document.getElementById('qNum');
+    const qTotal = document.getElementById('qTotal');
+    if (qNum) qNum.textContent = Math.min(gameState.currentIndex + 1, total);
+    if (qTotal) qTotal.textContent = total;
 
     const current = gameState.deck[gameState.currentIndex];
     if (!current) return;
-
     document.getElementById('qCatEmoji').textContent = current.catEmoji;
     document.getElementById('qCatName').textContent = current.catName;
     document.getElementById('questionText').textContent = current.q;
+
+    const duelInfo = document.getElementById('duelInfo');
+    if (duelInfo) {
+        if (gameState.duel) {
+            const a = gameState.players.find(p => p.id === gameState.duel.playerIds[0]);
+            const b = gameState.players.find(p => p.id === gameState.duel.playerIds[1]);
+            duelInfo.innerHTML = `⚡ مواجهة: <strong>${escapeHtml(a?.name || '')}</strong> ضد <strong>${escapeHtml(b?.name || '')}</strong>`;
+            duelInfo.style.display = 'block';
+        } else {
+            duelInfo.style.display = 'none';
+        }
+    }
 
     const questionKey = gameState.currentIndex + '-' + current.q;
     if (questionKey !== lastQuestionKey) {
@@ -251,45 +321,152 @@ function renderGameScreen() {
         current.options.forEach((opt, idx) => {
             const card = document.createElement('div');
             card.className = 'option-card' + (gameState.revealedCorrect && idx === current.a ? ' correct' : '');
-            card.innerHTML = `<span class="opt-mark">${letters[idx]}</span><span>${opt}</span>`;
+            card.innerHTML = `<span class="opt-mark">${letters[idx]}</span><span>${escapeHtml(opt)}</span>`;
             optionsGrid.appendChild(card);
         });
     } else {
         optionsGrid.style.display = 'none';
     }
+
+    updateResultGlow();
+    renderDuelOverlay();
+    if (gameState.duel) scheduleDuelFinish();
 }
 
 function renderPodium() {
     const list = document.getElementById('rankingList');
+    if (!list) return;
     list.innerHTML = '';
     const sorted = gameState.players.slice().sort((a, b) => b.score - a.score);
     const medals = ['🥇', '🥈', '🥉'];
     sorted.forEach((p, idx) => {
         const row = document.createElement('div');
         row.className = 'rank-row' + (idx === 0 ? ' gold' : '');
-        row.innerHTML = `
-            <span class="medal">${medals[idx] || (idx + 1)}</span>
-            <span class="r-avatar">${p.avatar}</span>
-            <span class="r-name">${p.name}</span>
-            <span class="r-score">${p.score}</span>`;
+        row.innerHTML = `<span class="medal">${medals[idx] || (idx + 1)}</span><span class="r-avatar">${p.avatar}</span><span class="r-name">${escapeHtml(p.name)}</span><span class="r-score">${p.score}</span>`;
         list.appendChild(row);
     });
 }
 
-function playFlash() {
-    const el = document.getElementById('flashOverlay');
-    el.classList.remove('fire'); void el.offsetWidth; el.classList.add('fire');
+function renderDuelOverlay() {
+    const overlay = document.getElementById('duelOverlay');
+    if (!overlay) return;
+    if (!gameState.duel) {
+        overlay.classList.remove('show');
+        if (duelUiTimer) { clearInterval(duelUiTimer); duelUiTimer = null; }
+        return;
+    }
+    const a = gameState.players.find(p => p.id === gameState.duel.playerIds[0]);
+    const b = gameState.players.find(p => p.id === gameState.duel.playerIds[1]);
+    const aEl = document.getElementById('duelPlayerA');
+    const bEl = document.getElementById('duelPlayerB');
+    const cEl = document.getElementById('duelCountdown');
+    if (aEl) aEl.innerHTML = `<span class="duel-avatar">${a?.avatar || '👤'}</span><strong>${escapeHtml(a?.name || 'لاعب')}</strong>`;
+    if (bEl) bEl.innerHTML = `<span class="duel-avatar">${b?.avatar || '👤'}</span><strong>${escapeHtml(b?.name || 'لاعب')}</strong>`;
+    overlay.classList.add('show');
+    const tick = () => {
+        if (!gameState.duel) return;
+        const seconds = Math.max(1, Math.ceil((gameState.duel.endsAt - Date.now()) / 1000));
+        if (cEl) cEl.textContent = seconds;
+    };
+    tick();
+    if (duelUiTimer) clearInterval(duelUiTimer);
+    duelUiTimer = setInterval(tick, 100);
 }
 
-// ========================================================= استقبال أوامر الحكم =========================================================
+function updateResultGlow() {
+    document.body.classList.remove('answer-correct', 'answer-wrong');
+    if (gameState.result === 'correct') document.body.classList.add('answer-correct');
+    if (gameState.result === 'wrong') document.body.classList.add('answer-wrong');
+}
+
+function startDuel() {
+    if (gameState.playerCount < 3 || gameState.players.length < 3) return;
+    const pair = shuffleArray(gameState.players).slice(0, 2);
+    gameState.duel = {
+        playerIds: pair.map(p => p.id),
+        endsAt: Date.now() + 3300,
+        questionIndex: gameState.currentIndex
+    };
+    gameState.activePlayerId = pair[0].id;
+    gameState.optionsShown = false;
+    gameState.revealedCorrect = false;
+    gameState.result = null;
+    gameState.nextDuelAt = null;
+    pushFullState();
+    renderGameScreen();
+    scheduleDuelFinish();
+}
+
+function scheduleDuelFinish() {
+    if (duelTimer) clearTimeout(duelTimer);
+    if (!gameState.duel) return;
+    const remaining = Math.max(0, gameState.duel.endsAt - Date.now());
+    if (remaining <= 0) {
+        finishDuel();
+        return;
+    }
+    duelTimer = setTimeout(finishDuel, remaining + 30);
+}
+
+function finishDuel() {
+    if (!gameState.duel) return;
+    gameState.duel = null;
+    gameState.optionsShown = true;
+    gameState.revealedCorrect = false;
+    pushFullState();
+    renderGameScreen();
+}
+
+function playFlash(type) {
+    const el = document.getElementById('flashOverlay');
+    if (!el) return;
+    el.className = 'flash-overlay';
+    void el.offsetWidth;
+    el.classList.add(type === 'correct' ? 'fire-green' : 'fire-red');
+}
+
+function advanceAfterCorrect() {
+    if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+    nextQuestionTimer = setTimeout(() => {
+        nextQuestionTimer = null;
+        moveNextQuestion();
+    }, 850);
+}
+
+function moveNextQuestion() {
+    gameState.duel = null;
+    gameState.result = null;
+    gameState.optionsShown = false;
+    gameState.revealedCorrect = false;
+    if (gameState.currentIndex >= gameState.deck.length - 1) {
+        gameState.status = 'over';
+        clearLocalResume();
+        pushFullState();
+        renderGameScreen();
+        return;
+    }
+    gameState.currentIndex += 1;
+    gameState.activePlayerId = gameState.players[(gameState.currentIndex) % gameState.players.length]?.id || gameState.activePlayerId;
+    if (gameState.playerCount >= 3 && gameState.currentIndex + 1 >= (gameState.nextDuelAt || Infinity)) {
+        startDuel();
+        return;
+    }
+    pushFullState();
+    renderGameScreen();
+}
+
+// ========================================================= استقبال أوامر الحكم
 function handleJudgeAction(msg) {
-    if (!msg) return;
+    if (!msg || gameState.status !== 'playing') return;
     const cur = gameState.deck[gameState.currentIndex];
+    if (!cur) return;
 
     switch (msg.type) {
-        case 'setActive':
+        case 'setActive': {
+            if (gameState.duel && !gameState.duel.playerIds.includes(msg.playerId)) return;
             gameState.activePlayerId = msg.playerId;
             break;
+        }
         case 'reveal':
             gameState.optionsShown = true;
             break;
@@ -298,16 +475,27 @@ function handleJudgeAction(msg) {
             gameState.revealedCorrect = false;
             break;
         case 'correct': {
+            if (gameState.duel && !gameState.duel.playerIds.includes(msg.playerId)) return;
             const player = gameState.players.find(p => p.id === msg.playerId);
             if (player) player.score += 1;
+            gameState.activePlayerId = msg.playerId;
             gameState.optionsShown = true;
             gameState.revealedCorrect = true;
-            playFlash();
-            break;
+            gameState.result = 'correct';
+            gameState.duel = null;
+            gameState.nextDuelAt = gameState.currentIndex + 1 + randomInt(2, 4);
+            if (gameState.nextDuelAt > gameState.deck.length) gameState.nextDuelAt = null;
+            playFlash('correct');
+            pushFullState();
+            renderGameScreen();
+            advanceAfterCorrect();
+            return;
         }
         case 'wrong':
             gameState.optionsShown = true;
             gameState.revealedCorrect = true;
+            gameState.result = 'wrong';
+            playFlash('wrong');
             break;
         case 'adjustScore': {
             const player = gameState.players.find(p => p.id === msg.playerId);
@@ -315,33 +503,35 @@ function handleJudgeAction(msg) {
             break;
         }
         case 'next':
-            if (gameState.currentIndex < gameState.deck.length - 1) {
-                gameState.currentIndex += 1;
-                gameState.optionsShown = false;
-                gameState.revealedCorrect = false;
-            } else {
-                gameState.status = 'over';
-            }
-            break;
+            if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+            moveNextQuestion();
+            return;
         case 'prev':
-            if (gameState.currentIndex > 0) {
-                gameState.currentIndex -= 1;
-                gameState.optionsShown = false;
-                gameState.revealedCorrect = false;
-            }
+            if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
+            if (gameState.currentIndex > 0) gameState.currentIndex -= 1;
+            gameState.duel = null;
+            gameState.nextDuelAt = null;
+            gameState.optionsShown = false;
+            gameState.revealedCorrect = false;
+            gameState.result = null;
             break;
         case 'end':
+            if (nextQuestionTimer) clearTimeout(nextQuestionTimer);
             gameState.status = 'over';
+            clearLocalResume();
             break;
     }
 
-    renderGameScreen();
     pushFullState();
+    renderGameScreen();
 }
 
-// ========================================================= عند التحميل =========================================================
+// ========================================================= عند التحميل
+
 document.addEventListener('DOMContentLoaded', () => {
-    // لو فيه لعبة جارية على نفس الجهاز (تحديث الصفحة بالغلط)، نرجعها بدل ما نبدأ من الصفر
     const resumed = tryResumeLocalGame();
-    if (!resumed) renderCatalogGrid();
+    if (!resumed) {
+        renderCatalogGrid();
+        goToSetupStep(1);
+    }
 });

@@ -17,7 +17,8 @@
     .panel h3{ font-family: var(--font-display); font-size:1.05rem; margin-bottom:10px; }
     .j-question{ font-size:1.1rem; line-height:1.7; margin-bottom:12px; }
     .j-answer-line{ display:flex; align-items:center; gap:8px; color: var(--ok); font-weight:700; }
-    .j-cat-row{ display:flex; align-items:center; gap:8px; color: var(--text-3); font-size:.9rem; margin-bottom:10px; }
+    .j-cat-row{ display:flex; align-items:center; gap:8px; color: var(--text-3); font-size:.9rem; margin-bottom:10px; flex-wrap:wrap; }
+    .j-duel-info{ display:inline-block; padding:8px 12px; border-radius:10px; background:rgba(255,214,10,.1); border:1px solid rgba(255,214,10,.25); color:var(--yellow-soft); font-weight:800; margin-bottom:10px; }
 
     .players-tabs{ display:flex; flex-wrap:wrap; gap:8px; }
     .p-tab{ display:flex; align-items:center; gap:6px; padding:9px 13px; border-radius:12px; background: var(--bg-panel-2); border:1px solid var(--line); font-weight:600; font-size:.9rem;
@@ -59,6 +60,27 @@
     .mini-btn:active{ transform: scale(.85); }
 
     .empty-note{ text-align:center; color: var(--text-3); padding: 40px 10px; animation: fadeSlideUp .4s ease; }
+
+    @media (max-width: 700px){
+        body{ padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+        .judge-wrap{ width:100%; gap:12px; }
+        .judge-header{ gap:10px; align-items:flex-start; }
+        .judge-header h1{ font-size:1.15rem; }
+        .conn-badge{ font-size:.72rem; padding:5px 9px; }
+        .panel{ padding:14px; border-radius:16px; }
+        .j-question{ font-size:1rem; line-height:1.8; }
+        .action-row{ grid-template-columns:1fr 1fr; position:sticky; bottom:8px; z-index:10; background:rgba(6,10,20,.88); backdrop-filter:blur(12px); padding:8px; border-radius:16px; }
+        .action-btn{ min-height:56px; padding:12px 8px; font-size:1rem; }
+        .util-btn{ min-width:0; min-height:48px; }
+        .p-tab{ min-height:46px; padding:10px 12px; }
+        .room-entry-input{ min-height:52px; font-size:1.25rem; text-align:center; }
+    }
+    @media (max-width: 420px){
+        .action-btn{ font-size:.9rem; }
+        .util-row{ display:grid; grid-template-columns:1fr 1fr; }
+        .util-btn{ width:100%; }
+        .score-row{ padding:8px; gap:7px; }
+    }
 </style>
 </head>
 <body>
@@ -86,13 +108,13 @@
     <div id="judgeBody" style="display:none; flex-direction:column; gap:16px;">
 
         <div class="panel">
-            <div class="j-cat-row"><span id="jCatEmoji">🧩</span><span id="jCatName">—</span><span>•</span><span>سؤال <span id="jQNum">1</span>/<span id="jQTotal">0</span></span></div>
+            <div class="j-cat-row"><span id="jCatEmoji">🧩</span><span id="jCatName">—</span><span>•</span><span>سؤال <span id="jQNum">1</span>/<span id="jQTotal">0</span></span></div><div id="jDuelInfo" style="display:none" class="j-duel-info">⚡ مواجهة: —</div>
             <div class="j-question" id="jQuestion">—</div>
             <div class="j-answer-line">✔️ الإجابة الصحيحة: <span id="jCorrectAnswer">—</span></div>
         </div>
 
         <div class="panel">
-            <h3>👤 اللاعب النشط (يحاول الإجابة)</h3>
+            <h3>👤 اللاعب المسموح له بالإجابة</h3>
             <div class="players-tabs" id="playersTabs"></div>
         </div>
 
@@ -136,10 +158,25 @@ function connectToRoom(code) {
     if (roomSync) roomSync.disconnect();
     roomSync = new RoomSync(code);
     roomSync.onStateUpdate = applyState;
+    roomSync.onStatusChange = updateConnectionStatus;
     roomSync.connect();
+    roomSync.startPolling(2500);
 
     // نجيب آخر حالة محفوظة فور الاتصال (يغطي حالة إن اللعبة بدت قبل ما نفتح لوحة الحكم)
     roomSync.fetchState().then(state => { if (state) applyState(state); });
+}
+
+function updateConnectionStatus(status) {
+    const text = document.getElementById('connText');
+    const dot = document.getElementById('connDot');
+    const map = {
+        SUBSCRIBED: 'متصل بالغرفة ✓',
+        CHANNEL_ERROR: 'الاتصال اللحظي فيه مشكلة…',
+        TIMED_OUT: 'إعادة الاتصال…',
+        CLOSED: 'انقطع الاتصال — إعادة الاتصال…'
+    };
+    if (text) text.textContent = map[status] || 'يتحقق من الاتصال…';
+    if (dot) dot.classList.toggle('sync-error', ['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status));
 }
 
 function connectFromInput() {
@@ -167,14 +204,25 @@ function applyState(s) {
     if (state.status === 'over') {
         document.getElementById('jQuestion').textContent = 'انتهت اللعبة 🏁 — شوف النتيجة على الشاشة الرئيسية';
         document.getElementById('jCorrectAnswer').textContent = '—';
+        document.getElementById('jDuelInfo').style.display = 'none';
     } else {
         const cur = state.deck[state.currentIndex];
+        if (!cur) return;
         document.getElementById('jCatEmoji').textContent = cur.catEmoji;
         document.getElementById('jCatName').textContent = cur.catName;
         document.getElementById('jQNum').textContent = state.currentIndex + 1;
         document.getElementById('jQTotal').textContent = state.deck.length;
         document.getElementById('jQuestion').textContent = cur.q;
         document.getElementById('jCorrectAnswer').textContent = cur.options[cur.a];
+        const duelInfo = document.getElementById('jDuelInfo');
+        if (state.duel && state.duel.playerIds) {
+            const a = state.players.find(p => p.id === state.duel.playerIds[0]);
+            const b = state.players.find(p => p.id === state.duel.playerIds[1]);
+            duelInfo.innerHTML = `⚡ مواجهة: ${a?.avatar || '👤'} ${a?.name || ''} <b>VS</b> ${b?.name || ''} ${b?.avatar || '👤'}`;
+            duelInfo.style.display = 'inline-block';
+        } else {
+            duelInfo.style.display = 'none';
+        }
     }
 
     if (!selectedActive || !state.players.find(p => p.id === selectedActive)) {
@@ -188,7 +236,9 @@ function applyState(s) {
 function renderTabs() {
     const wrap = document.getElementById('playersTabs');
     wrap.innerHTML = '';
-    state.players.forEach(p => {
+    const visiblePlayers = state.duel?.playerIds?.length ? state.players.filter(p => state.duel.playerIds.includes(p.id)) : state.players;
+    if (!selectedActive || !visiblePlayers.find(p => p.id === selectedActive)) selectedActive = visiblePlayers[0]?.id || null;
+    visiblePlayers.forEach(p => {
         const btn = document.createElement('button');
         btn.className = 'p-tab' + (p.id === selectedActive ? ' active' : '');
         btn.innerHTML = `<span>${p.avatar}</span><span>${p.name}</span>`;

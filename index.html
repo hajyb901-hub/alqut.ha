@@ -68,16 +68,34 @@
             </div>
         </div>
 
-        <!-- الخطوة 2: عدد اللاعبين -->
+        <!-- الخطوة 2: عدد اللاعبين والأسئلة -->
         <div class="setup-card" id="stepCount" style="display:none;">
-            <h2>👥 كم عدد اللاعبين؟</h2>
-            <p class="hint">من 2 إلى 8 لاعبين</p>
-            <div class="stepper-row">
-                <button class="stepper-btn" onclick="changePlayerCount(-1)">−</button>
-                <div class="stepper-val" id="playerCountVal">4</div>
-                <button class="stepper-btn" onclick="changePlayerCount(1)">+</button>
+            <h2>⚙️ إعداد الجولة</h2>
+            <p class="hint">حددوا عدد اللاعبين وعدد الأسئلة</p>
+
+            <div class="setup-extra">
+                <div class="setup-mini">
+                    <h3>👥 عدد اللاعبين</h3>
+                    <div class="stepper-row">
+                        <button class="stepper-btn" onclick="changePlayerCount(-1)">−</button>
+                        <div class="stepper-val" id="playerCountVal">4</div>
+                        <button class="stepper-btn" onclick="changePlayerCount(1)">+</button>
+                    </div>
+                    <p class="stepper-cap">لاعبين</p>
+                </div>
+
+                <div class="setup-mini">
+                    <h3>❓ عدد الأسئلة</h3>
+                    <div class="stepper-row">
+                        <button class="stepper-btn" onclick="changeQuestionCount(-1)">−</button>
+                        <div class="stepper-val" id="questionCountVal">15</div>
+                        <button class="stepper-btn" onclick="changeQuestionCount(1)">+</button>
+                    </div>
+                    <p class="stepper-cap">سؤال</p>
+                    <p class="setup-note">5، 10، 15، 20، 25، 30 أو 40</p>
+                </div>
             </div>
-            <p class="stepper-cap">لاعبين</p>
+
             <div class="setup-nav" style="margin-top:22px;">
                 <button class="nav-btn ghost" onclick="goToSetupStep(1)">→ رجوع</button>
                 <button class="nav-btn solid" onclick="renderPlayerNames(); goToSetupStep(3)">التالي ←</button>
@@ -113,6 +131,7 @@
     </div>
 
     <div class="stage">
+        <div id="duelInfo" class="duel-info"></div>
         <div class="question-card" id="questionCardBox">
             <h2 class="question-text" id="questionText">بانتظار الحكم لبدء السؤال...</h2>
         </div>
@@ -132,18 +151,33 @@
     </button>
 </section>
 
+<!-- ============ مواجهة اللاعبين ============ -->
+<div class="duel-overlay" id="duelOverlay" style="display:none;">
+    <div class="duel-shell">
+        <div class="duel-kicker">⚡ مواجهة عشوائية</div>
+        <div class="duel-versus">
+            <div class="duel-player-card" id="duelPlayerA"></div>
+            <div class="vs-badge">VS</div>
+            <div class="duel-player-card" id="duelPlayerB"></div>
+        </div>
+        <div class="duel-countdown" id="duelCountdown">3</div>
+    </div>
+</div>
+
 <!-- نافذة "كيف نلعب" -->
-<div class="modal-overlay" id="aboutModal" style="display:none;">
+<div class="modal-overlay" id="aboutModal" style="display:none;" onclick="if(event.target===this)closeAbout()">
     <div class="modal-box">
         <h3>❔ كيف نلعب لقطتها</h3>
         <ul>
-            <li>اختاروا الكتالوقات اللي تحبونها (ألعاب، كرتون قديم، دين، منوعات، بلدان، وغيرها).</li>
-            <li>سجّلوا عدد اللاعبين (٢ إلى ٨) وأسماءهم.</li>
+            <li>اختاروا الكتالوقات اللي تحبونها مثل المعالم، الدين، المنوعات، البلدان، الرياضة، العلوم وغيرها.</li>
+            <li>سجّلوا عدد اللاعبين (٢ إلى ٨) وعدد الأسئلة وأسماءهم.</li>
             <li>الحكم يتحكم بالأسئلة من لوحة الحكم على جهاز ثاني أو تبويب ثاني.</li>
             <li>أول لاعب يجاوب صح يلقطها ويأخذ النقطة، والحكم يسجلها له مباشرة.</li>
+            <li>إذا كان عدد اللاعبين ٣ أو أكثر، تظهر مواجهات عشوائية بين لاعبين قبل بعض الأسئلة.</li>
+            <li>في المواجهة، اللاعبان المختاران فقط يقدرون يجاوبون.</li>
             <li>اللي يجمع أكثر نقاط بنهاية الأسئلة يفوز باللقب!</li>
         </ul>
-        <button class="nav-btn solid" onclick="document.getElementById('aboutModal').style.display='none'">فهمت 👍</button>
+        <button class="nav-btn solid" onclick="closeAbout()">فهمت 👍</button>
     </div>
 </div>
 
