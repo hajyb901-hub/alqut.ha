@@ -34,7 +34,7 @@
     <div class="menu-stack">
         <button class="big-btn primary" onclick="goToSetupStep(1)">
             <span class="icon">🚀</span>
-            <span class="label"><strong>ابدأ اللعبة</strong><small>اختر الكتالوقات واللاعبين</small></span>
+            <span class="label"><strong>ابدأ اللعبة</strong><small>اختر التصنيفات واللاعبين</small></span>
         </button>
         <button class="big-btn" onclick="window.open('judge.html','_blank')">
             <span class="icon">⚖️</span>
@@ -57,9 +57,9 @@
             <div class="step-dot" id="dot3"></div>
         </div>
 
-        <!-- الخطوة 1: الكتالوقات -->
+        <!-- الخطوة 1: التصنيفات -->
         <div class="setup-card" id="stepCatalogs">
-            <h2>📚 اختر الكتالوقات</h2>
+            <h2>📚 اختر التصنيفات</h2>
             <p class="hint">اختر كتالوق واحد أو أكثر — الأسئلة بتنسحب منها كلها مع بعض</p>
             <div class="catalog-grid" id="catalogGrid"></div>
             <div class="setup-nav" style="margin-top:22px;">
@@ -71,9 +71,20 @@
         <!-- الخطوة 2: عدد اللاعبين والأسئلة -->
         <div class="setup-card" id="stepCount" style="display:none;">
             <h2>⚙️ إعداد الجولة</h2>
-            <p class="hint">حددوا عدد اللاعبين وعدد الأسئلة</p>
+            <p class="hint">حددوا عدد اللاعبين، عدد الأسئلة، ومستوى التحدي</p>
 
-            <div class="setup-extra">
+            <div class="setup-extra setup-three">
+                <div class="setup-mini difficulty-box">
+                    <h3>🎯 مستوى الأسئلة</h3>
+                    <div class="difficulty-options" id="difficultyOptions">
+                        <button type="button" class="difficulty-btn" data-difficulty="easy" onclick="setDifficulty('easy')">سهل</button>
+                        <button type="button" class="difficulty-btn active" data-difficulty="medium" onclick="setDifficulty('medium')">متوسط</button>
+                        <button type="button" class="difficulty-btn" data-difficulty="hard" onclick="setDifficulty('hard')">صعب</button>
+                        <button type="button" class="difficulty-btn" data-difficulty="mixed" onclick="setDifficulty('mixed')">عشوائي</button>
+                    </div>
+                    <p class="setup-note">الدين يحافظ على مستوى أعلى حتى مع اختيار السهل.</p>
+                </div>
+
                 <div class="setup-mini">
                     <h3>👥 عدد اللاعبين</h3>
                     <div class="stepper-row">
@@ -140,6 +151,7 @@
     </div>
 
     <div class="sync-footer"><span class="live-dot"></span> متزامن مباشر مع لوحة الحكم</div>
+    <div class="floating-tip" id="gameTip">💡 الحكم يحدد اللاعب أولاً ثم يسجل الإجابة</div>
 </section>
 
 <!-- ============ 4) شاشة النتائج ============ -->
@@ -170,7 +182,7 @@
     <div class="modal-box">
         <h3>❔ كيف نلعب لقطتها</h3>
         <ul>
-            <li>اختاروا الكتالوقات اللي تحبونها مثل المعالم، الدين، المنوعات، البلدان، الرياضة، العلوم وغيرها.</li>
+            <li>اختاروا التصنيفات اللي تحبونها مثل المعالم، الدين، المنوعات، البلدان، الرياضة، العلوم وغيرها.</li>
             <li>سجّلوا عدد اللاعبين (٢ إلى ٨) وعدد الأسئلة وأسماءهم.</li>
             <li>الحكم يتحكم بالأسئلة من لوحة الحكم على جهاز ثاني أو تبويب ثاني.</li>
             <li>أول لاعب يجاوب صح يلقطها ويأخذ النقطة، والحكم يسجلها له مباشرة.</li>

@@ -15,6 +15,7 @@ let gameState = {
     selectedCatalogs: [],
     questionCount: 15,
     playerCount: 4,
+    difficulty: 'medium',
     players: [],
     deck: [],
     currentIndex: 0,
@@ -74,7 +75,7 @@ function goHome() {
     if (roomSync) { roomSync.disconnect(); roomSync = null; }
     clearLocalResume();
     gameState = {
-        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
         result: null, status: 'setup', duel: null, nextDuelAt: null
     };
@@ -132,6 +133,22 @@ function goToSetupStep(step) {
     const qc = document.getElementById('questionCountVal');
     if (pc) pc.textContent = gameState.playerCount;
     if (qc) qc.textContent = gameState.questionCount;
+    updateDifficultyButtons();
+}
+
+function setDifficulty(level) {
+    const allowed = ['easy', 'medium', 'hard', 'mixed'];
+    if (!allowed.includes(level)) return;
+    gameState.difficulty = level;
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.difficulty === level);
+    });
+}
+
+function updateDifficultyButtons() {
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.difficulty === gameState.difficulty);
+    });
 }
 
 function changePlayerCount(delta) {
@@ -178,31 +195,96 @@ function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
-function buildDeck() {
+function getLocalDifficulty(catalogId, questionIndex) {
+    if (catalogId === 'religion') return 'hard';
+    // الأسئلة الجديدة في كل كتالوق صيغت كمستوى سهل، والأسئلة الأصلية كمتوسط.
+    return questionIndex >= 12 ? 'easy' : 'medium';
+}
+
+function difficultyMatches(questionDifficulty, selectedDifficulty, catalogId) {
+    if (catalogId === 'religion') return questionDifficulty === 'hard' || !questionDifficulty;
+    if (selectedDifficulty === 'mixed') return true;
+    if (selectedDifficulty === 'easy') return questionDifficulty === 'easy';
+    if (selectedDifficulty === 'medium') return questionDifficulty === 'easy' || questionDifficulty === 'medium';
+    if (selectedDifficulty === 'hard') return questionDifficulty === 'medium' || questionDifficulty === 'hard';
+    return true;
+}
+
+function normalizeQuestion(raw, catalogId, cat) {
+    if (!raw || !raw.q || !Array.isArray(raw.options) || raw.options.length < 2) return null;
+    const correct = Number.isInteger(raw.a) ? raw.a : Number(raw.correct_index);
+    if (!Number.isInteger(correct) || correct < 0 || correct >= raw.options.length) return null;
+    const indexed = raw.options.map((text, index) => ({ text: String(text), index }));
+    const mixed = shuffleArray(indexed);
+    return {
+        catalogId,
+        catName: cat?.name || raw.cat_name || catalogId,
+        catEmoji: cat?.emoji || raw.cat_emoji || '🧩',
+        q: String(raw.q),
+        options: mixed.map(x => x.text),
+        a: mixed.findIndex(x => x.index === correct),
+        difficulty: raw.difficulty || getLocalDifficulty(catalogId, 0)
+    };
+}
+
+async function fetchCloudQuestions() {
+    if (typeof supabaseClient === 'undefined') return [];
+    try {
+        const { data, error } = await supabaseClient
+            .from('questions_bank')
+            .select('id,category,difficulty,question,options,correct_index')
+            .in('category', gameState.selectedCatalogs);
+        if (error || !Array.isArray(data)) return [];
+        const result = [];
+        for (const row of data) {
+            const cat = CATALOGS[row.category];
+            if (!cat) continue;
+            const raw = { q: row.question, options: row.options, correct_index: row.correct_index, difficulty: row.difficulty };
+            if (!difficultyMatches(row.difficulty, gameState.difficulty, row.category)) continue;
+            const normalized = normalizeQuestion(raw, row.category, cat);
+            if (normalized) result.push(normalized);
+        }
+        return result;
+    } catch (e) {
+        console.warn('[لقطتها] تعذر جلب بنك الأسئلة السحابي، نستخدم البنك المحلي.', e);
+        return [];
+    }
+}
+
+function buildLocalDeck() {
     let pool = [];
     gameState.selectedCatalogs.forEach(id => {
         const cat = CATALOGS[id];
         if (!cat) return;
-        cat.questions.forEach(qq => {
-            const indexed = qq.options.map((text, index) => ({ text, index }));
-            const mixed = shuffleArray(indexed);
-            pool.push({
-                catalogId: id,
-                catName: cat.name,
-                catEmoji: cat.emoji,
-                q: qq.q,
-                options: mixed.map(x => x.text),
-                a: mixed.findIndex(x => x.index === qq.a)
-            });
+        cat.questions.forEach((qq, qi) => {
+            const difficulty = getLocalDifficulty(id, qi);
+            if (!difficultyMatches(difficulty, gameState.difficulty, id)) return;
+            const normalized = normalizeQuestion({ ...qq, difficulty }, id, cat);
+            if (normalized) pool.push(normalized);
         });
     });
-    gameState.deck = shuffleArray(pool).slice(0, Math.min(gameState.questionCount, pool.length));
+    return shuffleArray(pool);
 }
 
-function startGame() {
+async function buildDeck() {
+    // نبدأ من السحابي، ثم نكمل من البنك المحلي إذا كان عدد الأسئلة غير كافٍ.
+    const cloudPool = await fetchCloudQuestions();
+    const localPool = buildLocalDeck();
+    const seen = new Set();
+    const pool = [];
+    shuffleArray(cloudPool).forEach(q => { const key = q.catalogId + '|' + q.q; if (!seen.has(key)) { seen.add(key); pool.push(q); } });
+    shuffleArray(localPool).forEach(q => { const key = q.catalogId + '|' + q.q; if (!seen.has(key)) { seen.add(key); pool.push(q); } });
+    gameState.deck = pool.slice(0, Math.min(gameState.questionCount, pool.length));
+    return gameState.deck;
+}
+
+async function startGame() {
     if (!gameState.selectedCatalogs.length) return;
     renderPlayerNames();
-    buildDeck();
+    const startBtn = document.querySelector("#stepNames .nav-btn.solid");
+    if (startBtn) { startBtn.disabled = true; startBtn.textContent = "جاري تجهيز الأسئلة… ⏳"; }
+    await buildDeck();
+    if (startBtn) { startBtn.disabled = false; startBtn.textContent = "ابدأ اللقطة! 📸"; }
     if (!gameState.deck.length) return;
 
     gameState.roomCode = generateRoomCode();
@@ -546,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // الصفحة الرئيسية هي نقطة الدخول دائمًا؛ لا نستأنف جولة قديمة تلقائيًا.
     clearLocalResume();
     gameState = {
-        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, players: [],
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
         result: null, status: 'setup', duel: null, nextDuelAt: null
     };

@@ -513,3 +513,18 @@ button, .p-tab, .catalog-chip, .option-card, .mini-btn{ min-height:44px; }
         padding-right:max(12px, env(safe-area-inset-right));
     }
 }
+
+/* ---------- تحسينات خفيفة: مستوى الأسئلة + عناصر عائمة ---------- */
+.setup-three{ grid-template-columns:1.15fr 1fr 1fr; }
+.difficulty-options{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.difficulty-btn{ min-height:44px; padding:9px 10px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.035); color:var(--text-2); font-weight:800; transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease; }
+.difficulty-btn:hover{ transform:translateY(-2px); border-color:var(--cyan-glow); }
+.difficulty-btn.active{ color:#081018; border-color:transparent; background:linear-gradient(100deg,var(--yellow),var(--cyan)); box-shadow:0 7px 20px rgba(34,211,238,.16); }
+.setup-card{ transition:transform .25s ease,box-shadow .25s ease; }
+.setup-card:hover{ box-shadow:0 18px 50px rgba(0,0,0,.22),0 0 28px rgba(34,211,238,.06); }
+.floating-tip{ position:fixed; left:18px; bottom:18px; z-index:15; max-width:min(360px,calc(100vw - 36px)); padding:9px 13px; border:1px solid var(--line); border-radius:999px; background:rgba(15,23,38,.78); backdrop-filter:blur(12px); color:var(--text-2); font-size:.78rem; box-shadow:0 10px 30px rgba(0,0,0,.25); animation:floatTip 3.8s ease-in-out infinite; }
+@keyframes floatTip{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@media (max-width:700px){
+  .setup-three{grid-template-columns:1fr;}
+  .floating-tip{left:10px;bottom:10px;font-size:.72rem;}
+}
