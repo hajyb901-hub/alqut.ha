@@ -81,6 +81,7 @@
         .util-btn{ width:100%; }
         .score-row{ padding:8px; gap:7px; }
     }
+.fib-judge-input{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg-panel-2);color:var(--text-1);font:inherit}.fib-sub-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.92rem}.fib-sub-row:last-child{border-bottom:0}.fib-sub-missing{color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -118,17 +119,49 @@
             <div class="players-tabs" id="playersTabs"></div>
         </div>
 
-        <div class="action-row">
-            <button class="action-btn correct" onclick="markCorrect()">✅ صحيح</button>
-            <button class="action-btn wrong" onclick="markWrong()">❌ غلط</button>
+        <div id="classicJudgeControls">
+            <div class="action-row">
+                <button class="action-btn correct" onclick="markCorrect()">✅ صحيح</button>
+                <button class="action-btn wrong" onclick="markWrong()">❌ غلط</button>
+            </div>
+
+            <div class="util-row" style="margin-top:10px;">
+                <button class="util-btn" onclick="sendAction('reveal')">👁️ إظهار الخيارات</button>
+                <button class="util-btn" onclick="sendAction('hideOptions')">🙈 إخفاء الخيارات</button>
+                <button class="util-btn" onclick="sendAction('prev')">→ السؤال السابق</button>
+                <button class="util-btn" onclick="sendAction('next')">السؤال التالي ←</button>
+            </div>
         </div>
 
-        <div class="util-row">
-            <button class="util-btn" onclick="sendAction('reveal')">👁️ إظهار الخيارات</button>
-            <button class="util-btn" onclick="sendAction('hideOptions')">🙈 إخفاء الخيارات</button>
-            <button class="util-btn" onclick="sendAction('prev')">→ السؤال السابق</button>
-            <button class="util-btn" onclick="sendAction('next')">السؤال التالي ←</button>
+        <div id="fibbageJudgeControls" style="display:none;">
+            <div class="fib-judge-status" id="fibJudgeStatus">🎭 بانتظار الجولة…</div>
+            <div class="panel fib-judge-submissions" style="margin-top:10px;">
+                <h3>✍️ إجابات المتسابقين</h3>
+                <div id="fibJudgeSubmissions">—</div>
+            </div>
+            <div id="fibJudgeAnswerBox" class="panel" style="display:none;margin-top:10px;">
+                <h3>⚖️ لا أحد كتب الإجابة الصحيحة</h3>
+                <p class="hint">اكتب الإجابة الصحيحة هنا، ثم أرسلها ليتم إنشاء خيارات التصويت.</p>
+                <input id="fibJudgeCorrectInput" class="fib-judge-input" maxlength="120" placeholder="الإجابة الصحيحة…">
+                <button class="action-btn correct" style="width:100%;margin-top:8px;" onclick="judgeSubmitCorrect()">اعتماد الإجابة الصحيحة ✓</button>
+            </div>
+            <div id="fibJudgeAddOptionBox" class="panel" style="margin-top:10px;">
+                <h3>➕ إضافة خيار</h3>
+                <p class="hint">يمكنك إضافة خيار خامس أو أكثر حتى بعد ظهور 4 خيارات.</p>
+                <div style="display:flex;gap:8px;">
+                    <input id="fibJudgeExtraInput" class="fib-judge-input" maxlength="120" placeholder="اكتب خيارًا إضافيًا…">
+                    <button class="util-btn" onclick="judgeAddOption()">إضافة</button>
+                </div>
+            </div>
+            <div class="action-row" style="margin-top:10px;">
+                <button class="action-btn correct" onclick="sendAction('fibbageCloseWriting')">📥 إغلاق الكتابة</button>
+                <button class="action-btn wrong" onclick="sendAction('fibbageFinishVoting')">🗳️ إغلاق التصويت</button>
+            </div>
+            <div class="util-row" style="margin-top:10px;">
+                <button class="util-btn" onclick="sendAction('fibbageNext')">الجولة التالية ←</button>
+            </div>
         </div>
+
 
         <div class="panel">
             <h3>📊 تعديل النقاط يدوياً</h3>
@@ -241,7 +274,24 @@ function applyState(s) {
 
     renderTabs();
     renderScores();
+    renderFibbageJudge();
 }
+
+function renderFibbageJudge(){
+    const box=document.getElementById('fibbageJudgeControls'); if(!box) return;
+    const active=state?.mode==='fibbage' && state?.fibbage; box.style.display=active?'block':'none'; if(!active)return;
+    const f=state.fibbage;
+    const status=document.getElementById('fibJudgeStatus');
+    const labels={writing:'✍️ المتسابقون يكتبون…',judge_answer:'⚖️ اكتب الإجابة الصحيحة لأن أحدًا لم يطابقها',voting:'🗳️ التصويت جارٍ',results:'🏆 النتائج ظهرت'};
+    if(status)status.textContent=labels[f.phase]||f.phase;
+    const list=document.getElementById('fibJudgeSubmissions');
+    if(list) list.innerHTML=state.players.map(p=>{const sub=f.submissions?.[p.id];return `<div class="fib-sub-row ${sub?'':'fib-sub-missing'}"><span>${p.avatar} ${escapeHtml(p.name)}</span><b>${sub?escapeHtml(sub.text):'لم يكتب بعد'}</b></div>`}).join('');
+    const answerBox=document.getElementById('fibJudgeAnswerBox'); if(answerBox)answerBox.style.display=f.phase==='judge_answer'?'block':'none';
+    const input=document.getElementById('fibJudgeCorrectInput'); if(input && f.judgeCorrectAnswer)input.value=f.judgeCorrectAnswer;
+    const add=document.getElementById('fibJudgeAddOptionBox'); if(add)add.style.display=['judge_answer','voting'].includes(f.phase)?'block':'none';
+}
+function judgeSubmitCorrect(){const v=document.getElementById('fibJudgeCorrectInput')?.value.trim();if(v)sendAction('fibbageJudgeAnswer',{text:v});}
+function judgeAddOption(){const v=document.getElementById('fibJudgeExtraInput')?.value.trim();if(v){sendAction('fibbageAddOption',{text:v});document.getElementById('fibJudgeExtraInput').value='';}}
 
 function renderTabs() {
     const wrap = document.getElementById('playersTabs');

@@ -28,6 +28,7 @@ class RoomSync {
         this.channel = null;
         this.onStateUpdate = null;  // (state) => {}
         this.onJudgeAction = null;  // (payload) => {}
+        this.onPlayerAction = null; // (payload) => {}
         this.onStatusChange = null; // (status) => {}
         this.pollTimer = null;
         this.lastStateJson = null;
@@ -48,6 +49,9 @@ class RoomSync {
 
         this.channel.on('broadcast', { event: 'judge_action' }, (msg) => {
             if (this.onJudgeAction) this.onJudgeAction(msg.payload);
+        });
+        this.channel.on('broadcast', { event: 'player_action' }, (msg) => {
+            if (this.onPlayerAction) this.onPlayerAction(msg.payload);
         });
 
         this.channel.subscribe((status) => {
@@ -146,6 +150,12 @@ class RoomSync {
         } catch (e) {
             console.error('[RoomSync] pushState exception:', e);
         }
+    }
+
+    async sendPlayerAction(payload) {
+        if (!this.channel) return false;
+        try { await this.channel.send({ type: 'broadcast', event: 'player_action', payload }); return true; }
+        catch (e) { console.error('[RoomSync] player action failed:', e); return false; }
     }
 
     // ترسلها لوحة الحكم لشاشة اللعب (صحيح/غلط/تالي/إلخ)

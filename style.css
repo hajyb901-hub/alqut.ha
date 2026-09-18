@@ -640,3 +640,36 @@ body.duel-question-mode::before{content:"";position:fixed;inset:0;pointer-events
   .vs-badge{width:82px;height:82px;font-size:2.8rem;border-radius:30%;}
   .duel-countdown{width:135px;height:135px;font-size:4.8rem;}
 }
+
+/* =========================================================
+   نمط التكاذيب 🎭
+   ========================================================= */
+.mode-picker{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.mode-picker h3{font-family:var(--font-display);margin-bottom:10px}
+.mode-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode-btn{padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--bg-panel-2);color:var(--text-2);text-align:right;cursor:pointer;transition:.18s ease;display:flex;flex-direction:column;gap:5px}
+.mode-btn strong{font-size:1.05rem;color:var(--text-1)}
+.mode-btn small{color:var(--text-3);line-height:1.5}
+.mode-btn:hover{transform:translateY(-2px);border-color:var(--cyan-glow)}
+.mode-btn.active{border-color:var(--yellow);box-shadow:0 0 24px var(--yellow-glow);background:linear-gradient(135deg,rgba(255,214,10,.12),rgba(34,211,238,.08))}
+.fibbage-panel{width:min(820px,94vw);margin:16px auto 0;padding:18px;border:1px solid var(--line);border-radius:24px;background:rgba(10,16,28,.82);box-shadow:0 16px 50px rgba(0,0,0,.22);animation:fadeSlideUp .35s ease}
+.fibbage-player-picker{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:12px;color:var(--text-3);font-size:.85rem}
+.fibbage-player-btn{padding:8px 11px;border-radius:12px;background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text-2);font-weight:800;cursor:pointer}
+.fibbage-player-btn.active{border-color:var(--yellow);color:var(--yellow-soft);box-shadow:0 0 14px var(--yellow-glow)}
+.fibbage-phase{text-align:center;font-family:var(--font-display);font-size:1.25rem;font-weight:900}
+.fibbage-timer{width:76px;height:76px;border-radius:50%;margin:10px auto 14px;display:grid;place-items:center;font-family:var(--font-display);font-size:2rem;font-weight:1000;border:3px solid var(--yellow);box-shadow:0 0 25px var(--yellow-glow)}
+#fibbageAnswerInput{width:100%;min-height:125px;resize:vertical;padding:16px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.045);color:var(--text-1);font:inherit;line-height:1.7;outline:none}
+#fibbageAnswerInput:focus{border-color:var(--cyan);box-shadow:0 0 22px var(--cyan-glow)}
+.big-submit-btn{width:100%;margin-top:10px;padding:15px;border:0;border-radius:15px;background:linear-gradient(100deg,var(--yellow),var(--cyan));color:#071018;font-weight:1000;font-size:1.05rem;cursor:pointer}
+.fibbage-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fibbage-option{min-height:72px;padding:14px;text-align:right;border:1px solid var(--line);border-radius:15px;background:var(--bg-panel-2);color:var(--text-1);font:inherit;font-weight:800;cursor:pointer;display:flex;gap:10px;align-items:center;transition:.16s ease}
+.fibbage-option:hover{transform:translateY(-2px);border-color:var(--cyan)}
+.fibbage-option.selected{border-color:var(--yellow);box-shadow:0 0 18px var(--yellow-glow);background:rgba(255,214,10,.1)}
+.fibbage-note{text-align:center;color:var(--text-3);font-size:.82rem;margin-top:10px}
+.fibbage-results-list{display:flex;flex-direction:column;gap:8px}
+.fibbage-result-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--bg-panel-2)}
+.fibbage-result-row.real{border-color:var(--yellow);box-shadow:0 0 15px var(--yellow-glow)}
+.fibbage-result-row small{display:block;color:var(--text-3);margin-top:4px}
+.fibbage-score-delta{text-align:center;margin-top:12px;padding:10px;border-radius:12px;background:rgba(34,211,238,.08);color:var(--cyan);font-weight:900}
+.fib-judge-status{padding:13px;border-radius:13px;background:rgba(255,214,10,.08);border:1px solid rgba(255,214,10,.2);font-weight:900;text-align:center;margin-bottom:10px}
+@media(max-width:700px){.mode-options,.fibbage-options{grid-template-columns:1fr}.fibbage-panel{padding:13px}}

@@ -9,6 +9,7 @@ const LOCAL_RESUME_KEY = 'laqtaha_local_resume_v2';
 let roomSync = null;
 let duelTimer = null;
 let duelUiTimer = null;
+let fibbageUiTimer = null;
 let nextQuestionTimer = null;
 let gameState = {
     roomCode: null,
@@ -16,6 +17,8 @@ let gameState = {
     questionCount: 15,
     playerCount: 4,
     difficulty: 'medium',
+    mode: 'classic',
+    fibbage: null,
     players: [],
     deck: [],
     currentIndex: 0,
@@ -74,10 +77,11 @@ function goHome() {
     if (nextQuestionTimer) { clearTimeout(nextQuestionTimer); nextQuestionTimer = null; }
     if (duelTimer) { clearTimeout(duelTimer); duelTimer = null; }
     if (duelUiTimer) { clearTimeout(duelUiTimer); duelUiTimer = null; }
+    if (fibbageUiTimer) { clearInterval(fibbageUiTimer); fibbageUiTimer = null; }
     if (roomSync) { roomSync.disconnect(); roomSync = null; }
     clearLocalResume();
     gameState = {
-        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', mode: 'classic', fibbage: null, players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
         result: null, status: 'setup', duel: null, duelPresentation: null, duelSchedule: [], nextDuelAt: null
     };
@@ -117,6 +121,16 @@ function toggleCatalog(id) {
     renderCatalogGrid();
 }
 
+function setGameMode(mode) {
+    if (!['classic','fibbage'].includes(mode)) return;
+    gameState.mode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+    const note = document.querySelector('.difficulty-box + .setup-mini .setup-note');
+    if (mode === 'fibbage') gameState.playerCount = Math.min(4, Math.max(2, gameState.playerCount));
+    const pc = document.getElementById('playerCountVal');
+    if (pc) pc.textContent = gameState.playerCount;
+}
+
 function goToSetupStep(step) {
     showScreen('setupScreen');
     ['stepCatalogs', 'stepCount', 'stepNames'].forEach((id, idx) => {
@@ -154,7 +168,9 @@ function updateDifficultyButtons() {
 }
 
 function changePlayerCount(delta) {
-    gameState.playerCount = Math.min(8, Math.max(2, gameState.playerCount + delta));
+    const minPlayers = gameState.mode === 'fibbage' ? 2 : 2;
+    const maxPlayers = gameState.mode === 'fibbage' ? 4 : 8;
+    gameState.playerCount = Math.min(maxPlayers, Math.max(minPlayers, gameState.playerCount + delta));
     const val = document.getElementById('playerCountVal');
     if (val) { val.textContent = gameState.playerCount; replayAnimation(val); }
 }
@@ -292,7 +308,7 @@ async function startGame() {
     gameState.roomCode = generateRoomCode();
     gameState.currentIndex = 0;
     gameState.activePlayerId = gameState.players[0]?.id || null;
-    gameState.optionsShown = true;
+    gameState.optionsShown = gameState.mode === 'classic';
     gameState.revealedCorrect = false;
     gameState.result = null;
     gameState.status = 'playing';
@@ -300,19 +316,31 @@ async function startGame() {
     gameState.duelPresentation = null;
     gameState.duelSchedule = buildDuelSchedule(gameState.deck.length, gameState.playerCount);
     gameState.nextDuelAt = gameState.duelSchedule[0] || null;
+    gameState.fibbage = gameState.mode === 'fibbage' ? createFibbageState() : null;
 
     connectRoom(gameState.roomCode);
     renderRoomBadge();
     pushFullState();
     showScreen('gameScreen');
     renderGameScreen();
-    if (gameState.duelSchedule.includes(1)) startDuel();
+    if (gameState.mode === 'fibbage') { startFibbageRound(); }
+    else if (gameState.duelSchedule.includes(1)) startDuel();
 }
 
 function connectRoom(code) {
     if (roomSync) roomSync.disconnect();
     roomSync = new RoomSync(code);
     roomSync.onJudgeAction = handleJudgeAction;
+    roomSync.onPlayerAction = handlePlayerAction;
+    roomSync.onStateUpdate = (state) => {
+        if (!state || state.roomCode !== code) return;
+        gameState = state;
+        renderRoomBadge();
+        showScreen(gameState.status === 'over' ? 'podiumScreen' : 'gameScreen');
+        renderGameScreen();
+        if (gameState.duel) scheduleDuelFinish();
+        if (gameState.fibbage) scheduleFibbagePhaseTimer();
+    };
     roomSync.onStatusChange = updateMainConnectionStatus;
     roomSync.connect();
     roomSync.startPolling(2500);
@@ -361,6 +389,16 @@ function tryResumeLocalGame() {
     return true;
 }
 
+function copyPlayerRoomLink() {
+    if (!gameState.roomCode) return;
+    const url = new URL(location.href);
+    url.pathname = url.pathname.replace(/[^/]+$/, 'player.html');
+    url.search = '?room=' + encodeURIComponent(gameState.roomCode);
+    navigator.clipboard?.writeText(url.toString()).catch(() => {});
+    const btn=document.getElementById('playerLinkBtn');
+    if(btn){const old=btn.textContent;btn.textContent='تم نسخ الرابط ✓';setTimeout(()=>btn.textContent=old,1500);}
+}
+
 // ========================================================= عرض اللعبة
 function renderPlayersBar() {
     const bar = document.getElementById('playersBar');
@@ -401,6 +439,16 @@ function renderGameScreen() {
     document.getElementById('qCatEmoji').textContent = current.catEmoji;
     document.getElementById('qCatName').textContent = current.catName;
     document.getElementById('questionText').textContent = current.q;
+
+    const fibPanel = document.getElementById('fibbagePanel');
+    const classicOptions = document.getElementById('optionsGrid');
+    if (gameState.mode === 'fibbage') {
+        if (fibPanel) fibPanel.style.display = 'block';
+        if (classicOptions) classicOptions.style.display = 'none';
+        renderFibbage();
+    } else {
+        if (fibPanel) fibPanel.style.display = 'none';
+    }
 
     const duelInfo = document.getElementById('duelInfo');
     const duelPair = gameState.duel?.playerIds || gameState.duelPresentation?.playerIds || null;
@@ -587,6 +635,19 @@ function advanceAfterCorrect() {
 }
 
 function moveNextQuestion() {
+    if (gameState.mode === 'fibbage') {
+        if (gameState.currentIndex >= gameState.deck.length - 1) {
+            gameState.status = 'over';
+            clearLocalResume();
+            pushFullState();
+            renderGameScreen();
+            return;
+        }
+        gameState.currentIndex += 1;
+        gameState.activePlayerId = gameState.players[0]?.id || null;
+        startFibbageRound();
+        return;
+    }
     gameState.duel = null;
     gameState.duelPresentation = null;
     gameState.result = null;
@@ -609,11 +670,305 @@ function moveNextQuestion() {
     renderGameScreen();
 }
 
+// ========================================================= نمط التكاذيب 🎭
+const FIBBAGE_WRITE_MS = 60000;
+const FIBBAGE_VOTE_MS = 20000;
+
+function createFibbageState() {
+    return {
+        round: 0,
+        phase: 'writing', // writing | judge_answer | voting | results
+        writingEndsAt: 0,
+        votingEndsAt: 0,
+        submissions: {},
+        votes: {},
+        options: [],
+        results: null,
+        locked: false,
+        judgeCorrectAnswer: '',
+        judgeExtraOptions: []
+    };
+}
+
+function getFibbagePlayerId() {
+    const url = new URLSearchParams(location.search);
+    const fromUrl = url.get('player');
+    if (fromUrl && gameState.players.some(p => p.id === fromUrl)) return fromUrl;
+    return localStorage.getItem('laqtaha_fibbage_player_' + gameState.roomCode) || null;
+}
+
+function setFibbagePlayerId(id) {
+    if (!gameState.roomCode || !gameState.players.some(p => p.id === id)) return;
+    localStorage.setItem('laqtaha_fibbage_player_' + gameState.roomCode, id);
+    renderFibbage();
+}
+
+function startFibbageRound() {
+    if (gameState.mode !== 'fibbage') return;
+    if (!gameState.fibbage) gameState.fibbage = createFibbageState();
+    gameState.fibbage.round = (gameState.fibbage.round || 0) + 1;
+    gameState.fibbage.phase = 'writing';
+    gameState.fibbage.writingEndsAt = Date.now() + FIBBAGE_WRITE_MS;
+    gameState.fibbage.votingEndsAt = 0;
+    gameState.fibbage.submissions = {};
+    gameState.fibbage.votes = {};
+    gameState.fibbage.options = [];
+    gameState.fibbage.results = null;
+    gameState.fibbage.locked = false;
+    gameState.fibbage.judgeCorrectAnswer = '';
+    gameState.fibbage.judgeExtraOptions = [];
+    gameState.optionsShown = false;
+    gameState.result = null;
+    pushFullState();
+    renderGameScreen();
+    scheduleFibbagePhaseTimer();
+}
+
+function getFibbageCorrectText() {
+    const cur = gameState.deck[gameState.currentIndex];
+    return cur?.options?.[cur.a] || '';
+}
+
+function submitFibbageAnswerForPlayer(playerId, answer) {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'writing') return false;
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return false;
+    answer = String(answer || '').trim().slice(0, 120);
+    if (!answer) return false;
+    const correct = getFibbageCorrectText();
+    gameState.fibbage.submissions[playerId] = {
+        playerId,
+        text: answer,
+        isCorrectMatch: normalizeFibbage(answer) === normalizeFibbage(correct),
+        submittedAt: Date.now()
+    };
+    pushFullState();
+    renderGameScreen();
+    if (Object.keys(gameState.fibbage.submissions).length >= gameState.players.length) closeFibbageWriting();
+    return true;
+}
+
+function submitFibbageAnswer() {
+    return submitFibbageAnswerForPlayer(getFibbagePlayerId(), document.getElementById('fibbageAnswerInput')?.value || '');
+}
+
+function normalizeFibbage(v) {
+    return String(v || '').trim().replace(/[\u064B-\u065F\u0670]/g, '').replace(/\s+/g, ' ').toLowerCase();
+}
+
+function ensureMinimumFibbageOptions(groups) {
+    let n = 1;
+    const used = new Set([...groups.keys()].map(String));
+    while (groups.size < 4) {
+        let text = n === 1 ? 'خيار إضافي' : `خيار إضافي ${n}`;
+        while (used.has(normalizeFibbage(text))) { n++; text = `خيار إضافي ${n}`; }
+        const key = normalizeFibbage(text);
+        groups.set(key, {
+            id: 'extra_' + Math.random().toString(36).slice(2),
+            text,
+            playerIds: [],
+            isCorrect: false,
+            real: false,
+            deceptive: false,
+            judgeAdded: true
+        });
+        used.add(key);
+        n++;
+    }
+}
+
+function buildFibbageOptions() {
+    const correctText = gameState.fibbage.judgeCorrectAnswer || getFibbageCorrectText();
+    const groups = new Map();
+    Object.values(gameState.fibbage.submissions).forEach(sub => {
+        const key = normalizeFibbage(sub.text);
+        if (!groups.has(key)) groups.set(key, {
+            id: 's_' + Math.random().toString(36).slice(2),
+            text: sub.text,
+            playerIds: [],
+            isCorrect: !!sub.isCorrectMatch,
+            deceptive: !sub.isCorrectMatch && !sub.missing,
+            real: false
+        });
+        const g = groups.get(key);
+        g.playerIds.push(sub.playerId);
+        if (sub.isCorrectMatch) { g.isCorrect = true; g.deceptive = false; }
+        if (sub.missing) g.deceptive = false;
+    });
+
+    const correctKey = normalizeFibbage(correctText);
+    const matchingGroup = groups.get(correctKey);
+    if (matchingGroup) {
+        matchingGroup.real = true;
+        matchingGroup.isCorrect = true;
+        matchingGroup.deceptive = false;
+        matchingGroup.id = 'correct';
+    } else {
+        groups.set('__correct__', {
+            id: 'correct', text: correctText, playerIds: [], isCorrect: true, real: true, deceptive: false
+        });
+    }
+
+    // خيارات يضيفها الحكم يدويًا: لا مالك لها ولا تمنح نقاط خداع.
+    (gameState.fibbage.judgeExtraOptions || []).forEach((text, i) => {
+        const key = normalizeFibbage(text);
+        if (!key || key === correctKey || groups.has(key)) return;
+        groups.set(key, {
+            id: 'judge_' + i + '_' + Math.random().toString(36).slice(2),
+            text: String(text).slice(0, 120), playerIds: [], isCorrect: false, real: false, deceptive: false, judgeAdded: true
+        });
+    });
+
+    ensureMinimumFibbageOptions(groups);
+    gameState.fibbage.options = shuffleArray([...groups.values()]);
+}
+
+function beginFibbageVoting() {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'judge_answer' && gameState.fibbage.phase !== 'writing') return;
+    if (!gameState.fibbage.judgeCorrectAnswer) gameState.fibbage.judgeCorrectAnswer = getFibbageCorrectText();
+    buildFibbageOptions();
+    gameState.fibbage.phase = 'voting';
+    gameState.fibbage.votingEndsAt = Date.now() + FIBBAGE_VOTE_MS;
+    gameState.optionsShown = false;
+    pushFullState(); renderGameScreen(); scheduleFibbagePhaseTimer();
+}
+
+function closeFibbageWriting() {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'writing') return;
+    for (const p of gameState.players) {
+        if (!gameState.fibbage.submissions[p.id]) gameState.fibbage.submissions[p.id] = {
+            playerId: p.id, text: 'بدون إجابة', isCorrectMatch: false, missing: true
+        };
+    }
+    const hasCorrect = Object.values(gameState.fibbage.submissions).some(s => s.isCorrectMatch);
+    if (!hasCorrect) {
+        gameState.fibbage.phase = 'judge_answer';
+        gameState.fibbage.writingEndsAt = 0;
+        pushFullState(); renderGameScreen();
+        return;
+    }
+    beginFibbageVoting();
+}
+
+function submitJudgeFibbageCorrectAnswer(text) {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'judge_answer') return;
+    text = String(text || '').trim().slice(0, 120);
+    if (!text) return;
+    gameState.fibbage.judgeCorrectAnswer = text;
+    beginFibbageVoting();
+}
+
+function addJudgeFibbageOption(text) {
+    if (!gameState.fibbage || !['judge_answer','voting'].includes(gameState.fibbage.phase)) return;
+    text = String(text || '').trim().slice(0, 120);
+    if (!text) return;
+    if (!gameState.fibbage.judgeExtraOptions) gameState.fibbage.judgeExtraOptions = [];
+    const key = normalizeFibbage(text);
+    const existing = [getFibbageCorrectText(), gameState.fibbage.judgeCorrectAnswer, ...(gameState.fibbage.judgeExtraOptions || []), ...Object.values(gameState.fibbage.submissions).map(s => s.text)].map(normalizeFibbage);
+    if (existing.includes(key)) return;
+    gameState.fibbage.judgeExtraOptions.push(text);
+    if (gameState.fibbage.phase === 'voting') {
+        // إضافة خيار أثناء التصويت، مع الحفاظ على الخيارات الموجودة وأصواتها.
+        gameState.fibbage.options.push({ id:'judge_live_' + Math.random().toString(36).slice(2), text, playerIds:[], isCorrect:false, real:false, deceptive:false, judgeAdded:true });
+    }
+    pushFullState(); renderGameScreen();
+}
+
+function voteFibbageForPlayer(playerId, optionId) {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'voting') return false;
+    if (!gameState.players.some(p => p.id === playerId)) return false;
+    if (gameState.fibbage.votes[playerId]) return false;
+    const sub = gameState.fibbage.submissions[playerId];
+    if (optionId === 'correct' && sub?.isCorrectMatch) return false;
+    if (!gameState.fibbage.options.some(o => o.id === optionId)) return false;
+    gameState.fibbage.votes[playerId] = optionId;
+    pushFullState(); renderGameScreen();
+    if (Object.keys(gameState.fibbage.votes).length >= gameState.players.length) finishFibbageVoting();
+    return true;
+}
+
+function voteFibbage(optionId) { return voteFibbageForPlayer(getFibbagePlayerId(), optionId); }
+
+function finishFibbageVoting() {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'voting') return;
+    const f = gameState.fibbage;
+    const deltas = {};
+    gameState.players.forEach(p => deltas[p.id] = 0);
+    const counts = {};
+    Object.values(f.votes).forEach(optionId => { counts[optionId] = (counts[optionId] || 0) + 1; });
+    Object.entries(f.votes).forEach(([voter, optionId]) => {
+        const opt = f.options.find(o => o.id === optionId);
+        if (!opt) return;
+        if (opt.real || opt.isCorrect) deltas[voter] += 1;
+        else if (opt.deceptive) {
+            opt.playerIds.forEach(owner => {
+                if (owner !== voter && !f.submissions[owner]?.isCorrectMatch && !f.submissions[owner]?.missing) deltas[owner] += 1;
+            });
+        }
+    });
+    gameState.players.forEach(p => p.score = Math.max(0, p.score + (deltas[p.id] || 0)));
+    f.results = { counts, deltas };
+    f.phase = 'results'; f.locked = true;
+    pushFullState(); renderGameScreen();
+}
+
+function handlePlayerAction(msg) {
+    if (!msg || gameState.status !== 'playing' || gameState.mode !== 'fibbage') return;
+    if (msg.type === 'fibbageSubmit') submitFibbageAnswerForPlayer(msg.playerId, msg.text);
+    else if (msg.type === 'fibbageVote') voteFibbageForPlayer(msg.playerId, msg.optionId);
+}
+
+function handleFibbageJudgeAction(msg) {
+    if (!gameState.fibbage) return;
+    if (msg.type === 'fibbageCloseWriting') closeFibbageWriting();
+    else if (msg.type === 'fibbageJudgeAnswer') submitJudgeFibbageCorrectAnswer(msg.text);
+    else if (msg.type === 'fibbageAddOption') addJudgeFibbageOption(msg.text);
+    else if (msg.type === 'fibbageFinishVoting') finishFibbageVoting();
+    else if (msg.type === 'fibbageNext') moveNextQuestion();
+    else if (msg.type === 'adjustScore') { const p = gameState.players.find(x => x.id === msg.playerId); if (p) p.score = Math.max(0, p.score + msg.delta); pushFullState(); renderGameScreen(); }
+    else if (msg.type === 'end') { gameState.status = 'over'; clearLocalResume(); pushFullState(); renderGameScreen(); }
+}
+
+function scheduleFibbagePhaseTimer() {
+    if (duelTimer) clearTimeout(duelTimer);
+    if (!gameState.fibbage) return;
+    const target = gameState.fibbage.phase === 'writing' ? gameState.fibbage.writingEndsAt : gameState.fibbage.phase === 'voting' ? gameState.fibbage.votingEndsAt : 0;
+    if (!target) return;
+    duelTimer = setTimeout(() => {
+        if (!gameState.fibbage) return;
+        if (gameState.fibbage.phase === 'writing') closeFibbageWriting();
+        else if (gameState.fibbage.phase === 'voting') finishFibbageVoting();
+    }, Math.max(0, target - Date.now()) + 60);
+}
+
+function renderFibbage() {
+    const f = gameState.fibbage; if (!f) return;
+    const picker = document.getElementById('fibbagePlayerPicker');
+    const my = getFibbagePlayerId();
+    if (picker) picker.innerHTML = '<span>👤 اختر اسمك:</span>' + gameState.players.map(p => `<button class="fibbage-player-btn ${p.id===my?'active':''}" onclick="setFibbagePlayerId('${p.id}')">${p.avatar} ${escapeHtml(p.name)}</button>`).join('');
+    const phase = document.getElementById('fibbagePhaseText');
+    if (phase) phase.textContent = f.phase==='writing' ? '✍️ اكتب إجابتك' : f.phase==='judge_answer' ? '⚖️ الحكم يجهّز الإجابة الصحيحة' : f.phase==='voting' ? '🗳️ اختَر الإجابة الصحيحة' : '🏆 النتائج';
+    const timer = document.getElementById('fibbageTimer');
+    const target = f.phase==='writing' ? f.writingEndsAt : f.phase==='voting' ? f.votingEndsAt : 0;
+    if (timer) timer.textContent = target ? Math.max(0, Math.ceil((target-Date.now())/1000)) : (f.phase==='judge_answer' ? '⚖️' : '✓');
+    const w=document.getElementById('fibbageWriting'),v=document.getElementById('fibbageVoting'),r=document.getElementById('fibbageResults');
+    if(w) w.style.display=f.phase==='writing'?'block':'none'; if(v) v.style.display=f.phase==='voting'?'block':'none'; if(r) r.style.display=f.phase==='results'?'block':'none';
+    if(w){ const input=document.getElementById('fibbageAnswerInput'); const submitted=f.submissions[my]; if(input && submitted){input.value=submitted.text;input.disabled=true;} else if(input){input.disabled=!my;} }
+    if(v){ const wrap=document.getElementById('fibbageOptions'); wrap.innerHTML=''; f.options.forEach(o=>{ const selected=f.votes[my]===o.id; const b=document.createElement('button'); b.className='fibbage-option'+(selected?' selected':''); b.disabled=!!f.votes[my]; b.innerHTML=`<span>❔</span>${escapeHtml(o.text)}`; b.onclick=()=>voteFibbage(o.id); wrap.appendChild(b); }); }
+    if(r){ const wrap=document.getElementById('fibbageResultsList'); wrap.innerHTML=''; f.options.forEach(o=>{ const owners=o.real?'الإجابة الصحيحة':o.playerIds.map(id=>{const p=gameState.players.find(x=>x.id===id);return p?.name||'لاعب';}).join(' + ')||'خيار أضافه الحكم'; const row=document.createElement('div'); row.className='fibbage-result-row'+(o.real?' real':''); row.innerHTML=`<div><strong>${escapeHtml(o.text)}</strong><small>${escapeHtml(owners)}</small></div><b>${f.results?.counts?.[o.id]||0} صوت</b>`; wrap.appendChild(row); }); const d=document.getElementById('fibbageScoreDelta'); if(d)d.textContent=gameState.players.map(p=>`${p.avatar} ${p.name}: +${f.results?.deltas?.[p.id]||0}`).join('  •  '); }
+    if (!fibbageUiTimer) fibbageUiTimer=setInterval(()=>{ if(gameState.mode!=='fibbage'||!gameState.fibbage){clearInterval(fibbageUiTimer);fibbageUiTimer=null;return;} const f2=gameState.fibbage; const target2=f2.phase==='writing'?f2.writingEndsAt:f2.phase==='voting'?f2.votingEndsAt:0; const t=document.getElementById('fibbageTimer'); if(t)t.textContent=target2?Math.max(0,Math.ceil((target2-Date.now())/1000)):(f2.phase==='judge_answer'?'⚖️':'✓'); },250);
+}
+
 // ========================================================= استقبال أوامر الحكم
 function handleJudgeAction(msg) {
     if (!msg || gameState.status !== 'playing') return;
     const cur = gameState.deck[gameState.currentIndex];
     if (!cur) return;
+
+    if (gameState.mode === 'fibbage') {
+        handleFibbageJudgeAction(msg);
+        return;
+    }
 
     switch (msg.type) {
         case 'setActive': {
@@ -686,9 +1041,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // الصفحة الرئيسية هي نقطة الدخول دائمًا؛ لا نستأنف جولة قديمة تلقائيًا.
     clearLocalResume();
     gameState = {
-        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', players: [],
+        roomCode: null, selectedCatalogs: [], questionCount: 15, playerCount: 4, difficulty: 'medium', mode: 'classic', fibbage: null, players: [],
         deck: [], currentIndex: 0, activePlayerId: null, optionsShown: false, revealedCorrect: false,
         result: null, status: 'setup', duel: null, duelPresentation: null, duelSchedule: [], nextDuelAt: null
     };
     showScreen('startScreen');
+    const roomFromUrl = new URLSearchParams(location.search).get('room');
+    if (roomFromUrl) {
+        connectRoom(roomFromUrl);
+    }
 });

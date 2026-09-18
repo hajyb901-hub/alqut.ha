@@ -62,6 +62,13 @@
             <h2>📚 اختر التصنيفات</h2>
             <p class="hint">اختر كتالوق واحد أو أكثر — الأسئلة بتنسحب منها كلها مع بعض</p>
             <div class="catalog-grid" id="catalogGrid"></div>
+            <div class="mode-picker">
+                <h3>🎮 نمط اللعب</h3>
+                <div class="mode-options">
+                    <button type="button" class="mode-btn active" data-mode="classic" onclick="setGameMode('classic')">📸 <strong>لقطتها العادية</strong><small>سؤال + خيارات والحكم يسجل الإجابة</small></button>
+                    <button type="button" class="mode-btn" data-mode="fibbage" onclick="setGameMode('fibbage')">🎭 <strong>التكاذيب</strong><small>اكتب إجابة، اخدع أصحابك، ثم صوّتوا</small></button>
+                </div>
+            </div>
             <div class="setup-nav" style="margin-top:22px;">
                 <button class="nav-btn ghost" onclick="goHome()">🏠 الرئيسية</button>
                 <button class="nav-btn solid" id="toStep2Btn" onclick="goToSetupStep(2)" disabled>التالي ←</button>
@@ -82,7 +89,7 @@
                         <button type="button" class="difficulty-btn" data-difficulty="hard" onclick="setDifficulty('hard')">صعب</button>
                         <button type="button" class="difficulty-btn" data-difficulty="mixed" onclick="setDifficulty('mixed')">عشوائي</button>
                     </div>
-                    <p class="setup-note">الدين يحافظ على مستوى أعلى حتى مع اختيار السهل.</p>
+                    <p class="setup-note">في «التكاذيب» الحد 2–4 لاعبين؛ كل لاعب يكتب من جهازه.</p>
                 </div>
 
                 <div class="setup-mini">
@@ -138,6 +145,7 @@
             🔑 كود الغرفة: <strong id="roomCodeText">—</strong>
             <button class="mini-copy-btn" id="copyRoomBtn" onclick="copyRoomCode()">نسخ</button>
             <a id="judgeLinkBtn" class="mini-link-btn" href="judge.html" target="_blank">⚖️ فتح لوحة الحكم بهذا الكود</a>
+            <button id="playerLinkBtn" class="mini-link-btn" onclick="copyPlayerRoomLink()">👥 رابط اللاعبين</button>
             <button class="mini-link-btn game-home-btn" onclick="goHome()">🏠 الرئيسية</button>
         </div>
     </div>
@@ -148,6 +156,24 @@
             <h2 class="question-text" id="questionText">بانتظار الحكم لبدء السؤال...</h2>
         </div>
         <div class="options-grid" id="optionsGrid" style="display:none;"></div>
+
+        <div id="fibbagePanel" class="fibbage-panel" style="display:none;">
+            <div class="fibbage-player-picker" id="fibbagePlayerPicker" style="display:none"></div>
+            <div class="fibbage-phase" id="fibbagePhaseText">اكتب إجابتك</div>
+            <div class="fibbage-timer" id="fibbageTimer">60</div>
+            <div id="fibbageWriting" class="fibbage-section" style="display:none;">
+                <textarea id="fibbageAnswerInput" maxlength="120" placeholder="اكتب إجابتك هنا… سواء كانت الصحيحة أو كذبة مقنعة 😈"></textarea>
+                <button class="big-submit-btn" onclick="submitFibbageAnswer()">إرسال الإجابة 🚀</button>
+            </div>
+            <div id="fibbageVoting" class="fibbage-section" style="display:none;">
+                <div class="fibbage-options" id="fibbageOptions"></div>
+                <p class="fibbage-note">اختر الإجابة التي تعتقد أنها الصحيحة — أسماء اللاعبين مخفية.</p>
+            </div>
+            <div id="fibbageResults" class="fibbage-section" style="display:none;">
+                <div id="fibbageResultsList" class="fibbage-results-list"></div>
+                <div id="fibbageScoreDelta" class="fibbage-score-delta"></div>
+            </div>
+        </div>
     </div>
 
     <div class="sync-footer"><span class="live-dot"></span> متزامن مباشر مع لوحة الحكم</div>
@@ -182,11 +208,12 @@
     <div class="modal-box">
         <h3>❔ كيف نلعب لقطتها</h3>
         <ul>
-            <li>اختاروا التصنيفات اللي تحبونها مثل المعالم، الدين، المنوعات، البلدان، الرياضة، العلوم وغيرها.</li>
+            <li>اختاروا التصنيفات اللي تحبونها مثل المعالم، الدين، المعلومات العامة، البلدان، الرياضة، العلوم وغيرها.</li>
             <li>سجّلوا عدد اللاعبين (٢ إلى ٨) وعدد الأسئلة وأسماءهم.</li>
             <li>الحكم يتحكم بالأسئلة من لوحة الحكم على جهاز ثاني أو تبويب ثاني.</li>
             <li>أول لاعب يجاوب صح يلقطها ويأخذ النقطة، والحكم يسجلها له مباشرة.</li>
             <li>إذا كان عدد اللاعبين ٣ أو أكثر، تظهر مواجهات عشوائية بين لاعبين قبل بعض الأسئلة.</li>
+            <li>يمكنكم أيضًا اختيار نمط «التكاذيب»: كل لاعب يكتب إجابة ثم تصوتون على الإجابة الصحيحة.</li>
             <li>في المواجهة، اللاعبان المختاران فقط يقدرون يجاوبون.</li>
             <li>اللي يجمع أكثر نقاط بنهاية الأسئلة يفوز باللقب!</li>
         </ul>
