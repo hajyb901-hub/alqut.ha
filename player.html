@@ -3,56 +3,143 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>متسابق 🎭 | التكاذيب — لقطتها</title>
+<title>اللاعب 🎭 | التكاذيب — لقطتها</title>
 <link rel="stylesheet" href="style.css">
 <style>
-body{min-height:100vh;padding:18px}.player-wrap{max-width:760px;margin:auto;display:flex;flex-direction:column;gap:16px}.player-header{display:flex;justify-content:space-between;align-items:center;gap:10px}.player-header h1{font-family:var(--font-display);font-size:1.5rem}.player-room{font-size:.85rem;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg-panel)}
-.p-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 16px 50px rgba(0,0,0,.18)}.p-q{font-size:1.25rem;line-height:1.8;font-weight:800;margin-bottom:16px}.p-phase{font-family:var(--font-display);font-size:1.1rem;margin-bottom:8px}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.identity-btn{padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);font-weight:800;cursor:pointer}.identity-btn.active{border-color:var(--yellow);box-shadow:0 0 20px var(--yellow-glow)}.p-input{width:100%;min-height:120px;resize:vertical;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);color:var(--text-1);padding:15px;font:inherit;outline:none}.p-submit{width:100%;margin-top:10px;padding:14px;border:0;border-radius:15px;background:var(--yellow);color:#111;font-weight:900;cursor:pointer}.p-submit:disabled{opacity:.45;cursor:not-allowed}.p-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.p-option{padding:18px;text-align:right;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);color:var(--text-1);font:inherit;font-weight:800;cursor:pointer;min-height:70px}.p-option.selected{border-color:var(--cyan);box-shadow:0 0 24px rgba(34,211,238,.16)}.p-option:disabled{cursor:default}.p-status{text-align:center;color:var(--text-3);line-height:1.7}.p-results{display:flex;flex-direction:column;gap:9px}.p-result{display:flex;justify-content:space-between;gap:10px;padding:12px;border-radius:13px;background:var(--bg-panel-2);border:1px solid var(--line)}.hidden{display:none!important}@media(max-width:600px){.p-options,.identity-grid{grid-template-columns:1fr}}
+body{min-height:100vh;padding:18px;overflow-x:hidden}.player-wrap{width:min(760px,100%);margin:auto;display:flex;flex-direction:column;gap:16px}.player-header{display:flex;justify-content:space-between;align-items:center;gap:10px}.player-header h1{font-family:var(--font-display);font-size:1.5rem}.conn-badge{display:flex;align-items:center;gap:7px;font-size:.82rem;color:var(--text-3)}.live-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block}.live-dot.live{background:#22c55e;box-shadow:0 0 10px rgba(34,197,94,.65)}.player-room{font-size:.85rem;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg-panel)}.p-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 16px 50px rgba(0,0,0,.18)}.p-phase{font-family:var(--font-display);font-size:1.1rem;margin-bottom:8px}.p-q{font-size:1.3rem;line-height:1.9;font-weight:800;margin:0 0 18px}.identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.identity-btn{padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);color:var(--text-1);font-weight:800;cursor:pointer}.identity-btn.active{border-color:var(--yellow);box-shadow:0 0 20px var(--yellow-glow)}.room-entry-input{width:100%;box-sizing:border-box;min-height:56px;border:1px solid var(--line);border-radius:15px;background:var(--bg-panel-2);color:var(--text-1);padding:12px;font:inherit;font-size:1.25rem;text-align:center;letter-spacing:.14em;text-transform:uppercase;outline:none}.p-submit{width:100%;margin-top:10px;padding:14px;border:0;border-radius:15px;background:var(--yellow);color:#111;font-weight:900;cursor:pointer}.p-submit:disabled{opacity:.45;cursor:not-allowed}.p-input{width:100%;box-sizing:border-box;min-height:130px;resize:vertical;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);color:var(--text-1);padding:15px;font:inherit;outline:none}.p-input:focus,.room-entry-input:focus{border-color:var(--cyan)}.p-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.p-option{padding:18px;text-align:right;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel-2);color:var(--text-1);font:inherit;font-weight:800;cursor:pointer;min-height:70px}.p-option.selected{border-color:var(--cyan);box-shadow:0 0 24px rgba(34,211,238,.16)}.p-option:disabled{cursor:default}.p-status{text-align:center;color:var(--text-3);line-height:1.7}.hidden{display:none!important}.waiting{padding:18px;border:1px dashed var(--line);border-radius:15px;text-align:center;color:var(--text-3);line-height:1.8}.error{color:#fecaca}.my-name{font-weight:900;color:var(--yellow)}@media(max-width:600px){.p-options,.identity-grid{grid-template-columns:1fr}.player-wrap{gap:12px}.p-card{padding:16px}.p-q{font-size:1.12rem}}
 </style>
 </head>
 <body>
+<button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" aria-label="تكبير الشاشة">⛶ ملء الشاشة</button>
 <div class="bg-glow"></div><div class="bg-dots"></div>
 <div class="player-wrap">
-  <header class="player-header"><h1>🎭 التكاذيب</h1><span class="player-room" id="roomLabel">غرفة —</span></header>
-  <div class="p-card" id="joinCard">
-    <div class="p-phase">👤 اختر اسمك</div><p class="p-status">كل جهاز يختار لاعبًا واحدًا فقط.</p>
+  <header class="player-header"><h1>🎭 صفحة اللاعب</h1><div class="conn-badge"><span class="live-dot" id="connDot"></span><span id="connText">غير متصل</span></div></header>
+
+  <div class="p-card" id="roomEntry">
+    <div class="p-phase">🔑 دخول الغرفة</div>
+    <p class="p-status">أدخل كود الغرفة الذي يظهر عند صاحب اللعبة.</p>
+    <input id="roomCodeInput" class="room-entry-input" maxlength="5" placeholder="XXXXX" autocomplete="off" spellcheck="false">
+    <button id="connectBtn" class="p-submit" type="button">دخول الغرفة ⚡</button>
+    <p id="entryStatus" class="p-status" style="margin-top:10px"></p>
+  </div>
+
+  <div class="p-card hidden" id="identityCard">
+    <div class="p-phase">👤 اختر اسمك</div>
+    <p class="p-status">اختر اسم اللاعب الذي تستخدمه في هذا الجهاز.</p>
     <div class="identity-grid" id="identityGrid"></div>
   </div>
+
   <div class="p-card hidden" id="gameCard">
     <div class="p-phase" id="phaseText">بانتظار الجولة…</div>
     <div class="p-q" id="question">—</div>
-    <div id="writingBox"><textarea id="answerInput" class="p-input" maxlength="120" placeholder="اكتب إجابتك… ممكن تكون الصحيحة أو كذبة تقنع الآخرين 😈"></textarea><button id="submitBtn" class="p-submit">إرسال الإجابة 🚀</button></div>
-    <div id="votingBox" class="hidden"><div class="p-options" id="options"></div><p class="p-status" id="voteStatus"></p></div>
-    <div id="judgeWait" class="hidden"><p class="p-status">⚖️ لم يكتب أحد الإجابة الصحيحة. الحكم يجهز الإجابة الصحيحة الآن…</p></div>
-    <div id="resultsBox" class="hidden"><div class="p-results" id="results"></div><p class="p-status" id="myDelta"></p></div>
+    <div id="writingBox" class="hidden">
+      <textarea id="answerInput" class="p-input" maxlength="120" placeholder="اكتب إجابتك…"></textarea>
+      <button id="submitBtn" class="p-submit" type="button">إرسال الإجابة 🚀</button>
+    </div>
+    <div id="submittedBox" class="waiting hidden">✅ تم إرسال إجابتك.<br>انتظر الحكم حتى يُظهر الخيارات.</div>
+    <div id="votingBox" class="hidden">
+      <div class="p-options" id="options"></div>
+      <p class="p-status" id="voteStatus"></p>
+    </div>
+    <div id="judgeWait" class="waiting hidden">⚖️ انتهت مرحلة الكتابة. انتظر الحكم حتى يجهز الخيارات.</div>
+    <div id="resultsBox" class="waiting hidden"><div id="myDelta"></div></div>
   </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="room-sync.js?v=20260917"></script>
+<script src="room-sync.js?v=20260919"></script>
 <script>
-let sync=null,state=null,myId=null,tick=null;
-const qs=new URLSearchParams(location.search), room=(qs.get('room')||'').toUpperCase();
-const key='laqtaha_fibbage_player_'+room;
-const saved=localStorage.getItem(key); if(saved) myId=saved;
-document.getElementById('roomLabel').textContent='غرفة '+(room||'—');
+let sync=null,state=null,myId=null,room='';
+const roomInput=document.getElementById('roomCodeInput');
+const roomEntry=document.getElementById('roomEntry');
+const identityCard=document.getElementById('identityCard');
+const gameCard=document.getElementById('gameCard');
+const entryStatus=document.getElementById('entryStatus');
+
 function esc(v){const d=document.createElement('div');d.textContent=v??'';return d.innerHTML}
-function connect(){
- if(!room){document.getElementById('joinCard').innerHTML='<p class="p-status">افتح رابط اللاعبين الذي ينسخه صاحب الغرفة بعد بدء اللعبة.</p>';return;}
- sync=new RoomSync(room);sync.onStateUpdate=applyState;sync.onPlayerAction=()=>{};sync.connect();sync.startPolling(2500);sync.fetchState().then(s=>s&&applyState(s));
+function setConn(text,live=false){document.getElementById('connText').textContent=text;document.getElementById('connDot').classList.toggle('live',live)}
+function setEntryStatus(text,error=false){entryStatus.textContent=text;entryStatus.classList.toggle('error',error)}
+
+function connectFromInput(){
+  const code=(roomInput.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+  roomInput.value=code;
+  if(code.length!==5){setEntryStatus('أدخل كود الغرفة المكوّن من 5 أحرف/أرقام.');return;}
+  room=code;
+  if(sync) sync.disconnect();
+  state=null; myId=localStorage.getItem('laqtaha_fibbage_player_'+room)||null;
+  setEntryStatus('جارٍ الاتصال بالغرفة…');setConn('يتصل بالغرفة '+room+'…');
+  sync=new RoomSync(room);
+  sync.onStateUpdate=applyState;
+  sync.onStatusChange=status=>{
+    if(status==='SUBSCRIBED'){setConn('متصل بالغرفة '+room,true);setEntryStatus('تم الاتصال ✓');}
+    else if(status==='CHANNEL_ERROR'){setConn('مشكلة في الاتصال');setEntryStatus('تعذر الاتصال اللحظي. سنحاول المزامنة تلقائيًا.',true);}
+    else if(status==='TIMED_OUT'){setConn('إعادة الاتصال…');}
+  };
+  sync.connect();sync.startPolling(2500);
+  sync.fetchState().then(s=>{if(s) applyState(s);else setEntryStatus('لم تبدأ هذه الغرفة بعد. تأكد من الكود ثم انتظر بدء اللعبة.');});
 }
-function choose(id){myId=id;localStorage.setItem(key,id);renderIdentity();renderState()}
-function renderIdentity(){const g=document.getElementById('identityGrid');if(!state?.players)return;g.innerHTML=state.players.map(p=>`<button class="identity-btn ${p.id===myId?'active':''}" onclick="choose('${p.id}')">${p.avatar} ${esc(p.name)}</button>`).join('')}
-function send(type,payload){if(sync)sync.sendPlayerAction(Object.assign({type,playerId:myId},payload||{}))}
-function submit(){const v=document.getElementById('answerInput').value.trim();if(!myId||!v)return;send('fibbageSubmit',{text:v})}
-function vote(id){if(!myId)return;send('fibbageVote',{optionId:id})}
+
+function applyState(s){
+  if(!s||s.mode!=='fibbage') return;
+  state=s;
+  roomEntry.classList.add('hidden');
+  const exists=state.players?.some(p=>p.id===myId);
+  if(!exists) myId=null;
+  identityCard.classList.toggle('hidden',!!myId);
+  gameCard.classList.toggle('hidden',!myId);
+  renderIdentity();renderState();
+}
+
+function renderIdentity(){
+  const g=document.getElementById('identityGrid');
+  if(!state?.players?.length){g.innerHTML='<p class="p-status">لم يتم تجهيز اللاعبين بعد.</p>';return;}
+  g.innerHTML=state.players.map(p=>`<button class="identity-btn ${p.id===myId?'active':''}" onclick="choose('${p.id}')">${p.avatar||'👤'} ${esc(p.name)}</button>`).join('');
+}
+function choose(id){
+  if(!state?.players?.some(p=>p.id===id)) return;
+  myId=id;localStorage.setItem('laqtaha_fibbage_player_'+room,id);
+  identityCard.classList.add('hidden');gameCard.classList.remove('hidden');renderState();
+}
+function send(type,payload){if(sync&&myId)sync.sendPlayerAction(Object.assign({type,playerId:myId},payload||{}))}
+function submit(){
+  const input=document.getElementById('answerInput');const v=input.value.trim();
+  if(!myId||!v||state?.fibbage?.phase!=='writing')return;
+  send('fibbageSubmit',{text:v});
+}
+function vote(id){if(!myId||state?.fibbage?.phase!=='voting')return;send('fibbageVote',{optionId:id})}
+document.getElementById('connectBtn').onclick=connectFromInput;
+roomInput.addEventListener('keydown',e=>{if(e.key==='Enter')connectFromInput()});
 document.getElementById('submitBtn').onclick=submit;
-function applyState(s){if(!s||s.mode!=='fibbage')return;state=s;renderIdentity();document.getElementById('joinCard').classList.toggle('hidden',!!myId&&!!state.players.find(p=>p.id===myId));document.getElementById('gameCard').classList.toggle('hidden',!myId);renderState()}
-function renderState(){if(!state||!myId)return;const f=state.fibbage,cur=state.deck[state.currentIndex];if(!f||!cur)return;document.getElementById('question').textContent=cur.q;const labels={writing:'✍️ اكتب إجابتك',judge_answer:'⚖️ انتظر الحكم',voting:'🗳️ اختر الإجابة الصحيحة',results:'🏆 النتائج'};document.getElementById('phaseText').textContent=labels[f.phase]||f.phase;
- const submitted=f.submissions?.[myId];const wb=document.getElementById('writingBox'),vb=document.getElementById('votingBox'),jw=document.getElementById('judgeWait'),rb=document.getElementById('resultsBox');wb.classList.toggle('hidden',f.phase!=='writing');vb.classList.toggle('hidden',f.phase!=='voting');jw.classList.toggle('hidden',f.phase!=='judge_answer');rb.classList.toggle('hidden',f.phase!=='results');
- const input=document.getElementById('answerInput'),btn=document.getElementById('submitBtn');if(input){if(submitted)input.value=submitted.text;input.disabled=!!submitted;btn.disabled=!!submitted||!myId}
- if(f.phase==='voting'){const wrap=document.getElementById('options');wrap.innerHTML=f.options.map(o=>`<button class="p-option ${f.votes?.[myId]===o.id?'selected':''}" ${f.votes?.[myId]?'disabled':''} onclick="vote('${o.id}')">❔ ${esc(o.text)}</button>`).join('');document.getElementById('voteStatus').textContent=f.votes?.[myId]?'تم تسجيل صوتك ✓':'الأسماء مخفية — اختر الإجابة التي تراها صحيحة.'}
- if(f.phase==='results'){const wrap=document.getElementById('results');wrap.innerHTML=f.options.map(o=>{const owner=o.real?'الإجابة الصحيحة':(o.playerIds||[]).map(id=>state.players.find(p=>p.id===id)?.name||'لاعب').join(' + ')||'أضافه الحكم';return `<div class="p-result"><span><b>${esc(o.text)}</b><small style="display:block;color:var(--text-3)">${esc(owner)}</small></span><strong>${f.results?.counts?.[o.id]||0} صوت</strong></div>`}).join('');document.getElementById('myDelta').textContent='نتيجتك في الجولة: +'+(f.results?.deltas?.[myId]||0)+' نقطة'}
+
+function renderState(){
+  if(!state||!myId)return;
+  const f=state.fibbage;const cur=state.deck?.[state.currentIndex];
+  if(!f||!cur)return;
+  document.getElementById('question').textContent=cur.q||'—';
+  const labels={writing:'✍️ اكتب إجابتك',judge_answer:'⚖️ انتظر الحكم',voting:'🗳️ اختر الإجابة التي تعتقد أنها الصحيحة',results:'🏆 النتيجة'};
+  document.getElementById('phaseText').textContent=labels[f.phase]||'بانتظار الجولة…';
+  const submitted=!!f.submissions?.[myId];
+  const wb=document.getElementById('writingBox'),sb=document.getElementById('submittedBox'),vb=document.getElementById('votingBox'),jw=document.getElementById('judgeWait'),rb=document.getElementById('resultsBox');
+  wb.classList.add('hidden');sb.classList.add('hidden');vb.classList.add('hidden');jw.classList.add('hidden');rb.classList.add('hidden');
+  const input=document.getElementById('answerInput');const btn=document.getElementById('submitBtn');
+  if(f.phase==='writing'){
+    if(submitted){sb.classList.remove('hidden');}
+    else{wb.classList.remove('hidden');input.disabled=false;btn.disabled=false;}
+  } else if(f.phase==='judge_answer'){jw.classList.remove('hidden');}
+  else if(f.phase==='voting'){
+    vb.classList.remove('hidden');
+    const voted=f.votes?.[myId];const wrap=document.getElementById('options');
+    wrap.innerHTML=(f.options||[]).map(o=>`<button class="p-option ${voted===o.id?'selected':''}" ${voted?'disabled':''} onclick="vote('${o.id}')">❔ ${esc(o.text)}</button>`).join('');
+    document.getElementById('voteStatus').textContent=voted?'تم تسجيل اختيارك ✓':'اختر إجابة واحدة فقط.';
+  } else if(f.phase==='results'){
+    rb.classList.remove('hidden');document.getElementById('myDelta').textContent='نتيجتك في الجولة: +'+(f.results?.deltas?.[myId]||0)+' نقطة';
+  }
 }
-connect();
+
+roomInput.focus();
+
+function toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()}
+function updateFullscreenButton(){const b=document.getElementById('fullscreenBtn');if(b)b.textContent=document.fullscreenElement?'⛶ خروج من ملء الشاشة':'⛶ ملء الشاشة'}
+document.addEventListener('fullscreenchange',updateFullscreenButton);updateFullscreenButton();
 </script>
 </body></html>

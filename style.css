@@ -47,6 +47,48 @@ body{
     position: relative;
 }
 
+
+/* ---------- وضع ملء الشاشة + إخفاء شريط التمرير ---------- */
+html, body, .screen, .setup-shell, .stage, .judge-wrap, .player-wrap{
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, .screen::-webkit-scrollbar,
+.setup-shell::-webkit-scrollbar, .stage::-webkit-scrollbar, .judge-wrap::-webkit-scrollbar,
+.player-wrap::-webkit-scrollbar{ display:none; width:0; height:0; }
+
+.fullscreen-btn{
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 9999;
+    min-height: 44px;
+    padding: 9px 13px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: rgba(15,23,38,.88);
+    color: var(--text-1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 28px rgba(0,0,0,.2);
+    font-weight: 800;
+    cursor: pointer;
+}
+.fullscreen-btn:hover{ transform: translateY(-1px); border-color: var(--cyan); }
+.fullscreen-btn:active{ transform: scale(.97); }
+
+html:fullscreen, html:fullscreen body{
+    width:100%;
+    min-height:100%;
+}
+body:fullscreen{
+    overflow-x:hidden;
+}
+
+@media(max-width:600px){
+    .fullscreen-btn{ top:10px; left:10px; padding:8px 10px; font-size:.82rem; }
+}
+
 /* ---------- خلفية: توهجان أصفر وسماوي متقابلان + شبكة نقاط خفيفة ---------- */
 .bg-glow{ position: fixed; inset:0; z-index:-2; pointer-events:none; }
 .bg-glow::before, .bg-glow::after{

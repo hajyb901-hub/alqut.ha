@@ -85,6 +85,8 @@
 </style>
 </head>
 <body>
+<button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" aria-label="تكبير الشاشة">⛶ ملء الشاشة</button>
+
 
 <div class="bg-glow"></div>
 <div class="bg-dots"></div>
@@ -341,5 +343,22 @@ if (roomFromUrl) {
     connectToRoom(roomFromUrl);
 }
 </script>
+<script>
+function isFullscreen(){ return !!document.fullscreenElement; }
+async function toggleFullscreen(){
+  try {
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  } catch (e) { console.warn('Fullscreen unavailable', e); }
+}
+function updateFullscreenButton(){
+  const b=document.getElementById('fullscreenBtn');
+  if(!b) return;
+  b.textContent=document.fullscreenElement ? '⛶ خروج من ملء الشاشة' : '⛶ ملء الشاشة';
+}
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+document.addEventListener('DOMContentLoaded', updateFullscreenButton);
+</script>
+
 </body>
 </html>

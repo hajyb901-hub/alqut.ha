@@ -393,7 +393,8 @@ function copyPlayerRoomLink() {
     if (!gameState.roomCode) return;
     const url = new URL(location.href);
     url.pathname = url.pathname.replace(/[^/]+$/, 'player.html');
-    url.search = '?room=' + encodeURIComponent(gameState.roomCode);
+    url.search = '';
+    url.hash = '';
     navigator.clipboard?.writeText(url.toString()).catch(() => {});
     const btn=document.getElementById('playerLinkBtn');
     if(btn){const old=btn.textContent;btn.textContent='تم نسخ الرابط ✓';setTimeout(()=>btn.textContent=old,1500);}
