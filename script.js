@@ -224,7 +224,7 @@ function difficultyMatches(questionDifficulty, selectedDifficulty, catalogId) {
     if (selectedDifficulty === 'mixed') return true;
     if (selectedDifficulty === 'easy') return questionDifficulty === 'easy';
     if (selectedDifficulty === 'medium') return questionDifficulty === 'easy' || questionDifficulty === 'medium';
-    if (selectedDifficulty === 'hard') return questionDifficulty === 'medium' || questionDifficulty === 'hard';
+    if (selectedDifficulty === 'hard') return questionDifficulty === 'hard';
     return true;
 }
 
