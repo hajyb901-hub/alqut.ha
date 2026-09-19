@@ -110,7 +110,7 @@ document.getElementById('connectBtn').onclick=connectFromInput;roomInput.addEven
 function renderState(){
  if(!state||!myId)return;const f=state.fibbage;const cur=state.deck?.[state.currentIndex];if(!f||!cur)return;
  document.getElementById('question').textContent=cur.q||'—';
- const labels={writing:'✍️ اكتب إجابتك',judge_answer:'⚖️ الحكم يستقبل الإجابات ويجهز الخيارات',voting:'🗳️ اختر الإجابة التي تعتقد أنها الصحيحة',results:'🏆 النتيجة'};document.getElementById('phaseText').textContent=labels[f.phase]||'بانتظار الجولة…';
+ const labels={writing:'✍️ اكتب إجابتك',judge_review:'⚖️ الحكم يراجع الإجابات ويجهز الخيارات',judge_answer:'⚖️ الحكم يستقبل الإجابات ويجهز الخيارات',voting:'🗳️ اختر الإجابة التي تعتقد أنها الصحيحة',results:'🏆 النتيجة'};document.getElementById('phaseText').textContent=labels[f.phase]||'بانتظار الجولة…';
  const submitted=!!f.submissions?.[myId];const wb=document.getElementById('writingBox'),sb=document.getElementById('submittedBox'),vb=document.getElementById('votingBox'),jw=document.getElementById('judgeWait'),rb=document.getElementById('resultsBox');
  wb.classList.add('hidden');sb.classList.add('hidden');vb.classList.add('hidden');jw.classList.add('hidden');rb.classList.add('hidden');
  if(f.phase==='writing'){if(submitted)sb.classList.remove('hidden');else wb.classList.remove('hidden')}

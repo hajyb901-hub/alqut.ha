@@ -157,6 +157,7 @@
             </div>
             <div class="action-row" style="margin-top:10px;">
                 <button class="action-btn correct" onclick="sendAction('fibbageCloseWriting')">📥 إغلاق الكتابة</button>
+                <button id="fibShowOptionsBtn" class="action-btn correct" onclick="sendAction('fibbageShowOptions')">👁️ إظهار الخيارات للمتسابقين</button>
                 <button class="action-btn wrong" onclick="sendAction('fibbageFinishVoting')">🗳️ إغلاق التصويت</button>
             </div>
             <div class="util-row" style="margin-top:10px;">
@@ -284,13 +285,15 @@ function renderFibbageJudge(){
     const active=state?.mode==='fibbage' && state?.fibbage; box.style.display=active?'block':'none'; if(!active)return;
     const f=state.fibbage;
     const status=document.getElementById('fibJudgeStatus');
-    const labels={writing:'✍️ المتسابقون يكتبون…',judge_answer:'⚖️ اكتب الإجابة الصحيحة لأن أحدًا لم يطابقها',voting:'🗳️ التصويت جارٍ',results:'🏆 النتائج ظهرت'};
+    const labels={writing:'✍️ المتسابقون يكتبون…',judge_review:'⚖️ راجع الإجابات ثم أظهر الخيارات',judge_answer:'⚖️ اكتب الإجابة الصحيحة لأن أحدًا لم يطابقها',voting:'🗳️ التصويت جارٍ',results:'🏆 النتائج ظهرت'};
     if(status)status.textContent=labels[f.phase]||f.phase;
     const list=document.getElementById('fibJudgeSubmissions');
     if(list) list.innerHTML=state.players.map(p=>{const sub=f.submissions?.[p.id];return `<div class="fib-sub-row ${sub?'':'fib-sub-missing'}"><span>${p.avatar} ${escapeHtml(p.name)}</span><b>${sub?escapeHtml(sub.text):'لم يكتب بعد'}</b></div>`}).join('');
-    const answerBox=document.getElementById('fibJudgeAnswerBox'); if(answerBox)answerBox.style.display=f.phase==='judge_answer'?'block':'none';
+    const answerBox=document.getElementById('fibJudgeAnswerBox'); const hasCorrect=f.submissions && Object.values(f.submissions).some(s=>s.isCorrectMatch);
+    if(answerBox)answerBox.style.display=(f.phase==='judge_review' && !hasCorrect && !f.judgeCorrectAnswer)?'block':'none';
     const input=document.getElementById('fibJudgeCorrectInput'); if(input && f.judgeCorrectAnswer)input.value=f.judgeCorrectAnswer;
-    const add=document.getElementById('fibJudgeAddOptionBox'); if(add)add.style.display=['judge_answer','voting'].includes(f.phase)?'block':'none';
+    const showBtn=document.getElementById('fibShowOptionsBtn'); if(showBtn)showBtn.style.display=f.phase==='judge_review'?'block':'none';
+    const add=document.getElementById('fibJudgeAddOptionBox'); if(add)add.style.display=['judge_review','judge_answer','voting'].includes(f.phase)?'block':'none';
 }
 function judgeSubmitCorrect(){const v=document.getElementById('fibJudgeCorrectInput')?.value.trim();if(v)sendAction('fibbageJudgeAnswer',{text:v});}
 function judgeAddOption(){const v=document.getElementById('fibJudgeExtraInput')?.value.trim();if(v){sendAction('fibbageAddOption',{text:v});document.getElementById('fibJudgeExtraInput').value='';}}

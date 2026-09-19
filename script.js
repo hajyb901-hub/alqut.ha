@@ -675,7 +675,7 @@ const FIBBAGE_VOTE_MS = 20000;
 function createFibbageState() {
     return {
         round: 0,
-        phase: 'writing', // writing | judge_answer | voting | results
+        phase: 'writing', // writing | judge_review | voting | results
         writingEndsAt: 0,
         votingEndsAt: 0,
         submissions: {},
@@ -839,7 +839,7 @@ function buildFibbageOptions() {
 }
 
 function beginFibbageVoting() {
-    if (!gameState.fibbage || gameState.fibbage.phase !== 'judge_answer' && gameState.fibbage.phase !== 'writing') return;
+    if (!gameState.fibbage || !['judge_review','writing'].includes(gameState.fibbage.phase)) return;
     if (!gameState.fibbage.judgeCorrectAnswer) gameState.fibbage.judgeCorrectAnswer = getFibbageCorrectText();
     buildFibbageOptions();
     gameState.fibbage.phase = 'voting';
@@ -855,26 +855,32 @@ function closeFibbageWriting() {
             playerId: p.id, text: 'بدون إجابة', isCorrectMatch: false, missing: true
         };
     }
-    const hasCorrect = Object.values(gameState.fibbage.submissions).some(s => s.isCorrectMatch);
-    if (!hasCorrect) {
-        gameState.fibbage.phase = 'judge_answer';
-        gameState.fibbage.writingEndsAt = 0;
-        pushFullState(); renderGameScreen();
-        return;
+    // بعد إغلاق الكتابة، لا نُظهر الخيارات تلقائيًا. الحكم يجب أن يراجع الإجابات أولًا.
+    gameState.fibbage.phase = 'judge_review';
+    gameState.fibbage.writingEndsAt = 0;
+    pushFullState(); renderGameScreen();
+}
+
+function submitJudgeFibbageCorrectAnswer(text) {
+    if (!gameState.fibbage || !['judge_review','judge_answer'].includes(gameState.fibbage.phase)) return;
+    text = String(text || '').trim().slice(0, 120);
+    if (!text) return;
+    gameState.fibbage.judgeCorrectAnswer = text;
+    gameState.fibbage.phase = 'judge_review';
+    pushFullState(); renderGameScreen();
+}
+
+function showFibbageOptions() {
+    if (!gameState.fibbage || gameState.fibbage.phase !== 'judge_review') return;
+    if (!gameState.fibbage.judgeCorrectAnswer) {
+        const hasCorrect = Object.values(gameState.fibbage.submissions || {}).some(s => s.isCorrectMatch);
+        if (!hasCorrect) return;
     }
     beginFibbageVoting();
 }
 
-function submitJudgeFibbageCorrectAnswer(text) {
-    if (!gameState.fibbage || gameState.fibbage.phase !== 'judge_answer') return;
-    text = String(text || '').trim().slice(0, 120);
-    if (!text) return;
-    gameState.fibbage.judgeCorrectAnswer = text;
-    beginFibbageVoting();
-}
-
 function addJudgeFibbageOption(text) {
-    if (!gameState.fibbage || !['judge_answer','voting'].includes(gameState.fibbage.phase)) return;
+    if (!gameState.fibbage || !['judge_review','judge_answer','voting'].includes(gameState.fibbage.phase)) return;
     text = String(text || '').trim().slice(0, 120);
     if (!text) return;
     if (!gameState.fibbage.judgeExtraOptions) gameState.fibbage.judgeExtraOptions = [];
@@ -937,6 +943,7 @@ function handlePlayerAction(msg) {
 function handleFibbageJudgeAction(msg) {
     if (!gameState.fibbage) return;
     if (msg.type === 'fibbageCloseWriting') closeFibbageWriting();
+    else if (msg.type === 'fibbageShowOptions') showFibbageOptions();
     else if (msg.type === 'fibbageJudgeAnswer') submitJudgeFibbageCorrectAnswer(msg.text);
     else if (msg.type === 'fibbageAddOption') addJudgeFibbageOption(msg.text);
     else if (msg.type === 'fibbageFinishVoting') finishFibbageVoting();
@@ -964,8 +971,10 @@ function renderFibbage() {
         phase.textContent = f.phase === 'writing'
             ? `✍️ بانتظار إجابات اللاعبين — ${submittedCount}/${gameState.players.length}`
             : f.phase === 'judge_answer'
-                ? '⚖️ الحكم يجهّز الإجابة الصحيحة'
-                : f.phase === 'voting'
+                ? '⚖️ الحكم يراجع الإجابات ويقرر إظهار الخيارات'
+                : f.phase === 'judge_review'
+                    ? '⚖️ الحكم يراجع الإجابات ويقرر إظهار الخيارات'
+                    : f.phase === 'voting'
                     ? '🗳️ الخيارات ظاهرة — اللاعبون يصوّتون'
                     : '🏆 النتائج';
     }
