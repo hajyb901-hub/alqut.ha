@@ -390,9 +390,7 @@ function tryResumeLocalGame() {
 }
 
 function copyPlayerRoomLink() {
-    if (!gameState.roomCode) return;
-    const url = new URL(location.href);
-    url.pathname = url.pathname.replace(/[^/]+$/, 'player.html');
+    const url = new URL('player.html', location.href);
     url.search = '';
     url.hash = '';
     navigator.clipboard?.writeText(url.toString()).catch(() => {});
@@ -686,7 +684,8 @@ function createFibbageState() {
         results: null,
         locked: false,
         judgeCorrectAnswer: '',
-        judgeExtraOptions: []
+        judgeExtraOptions: [],
+        playerClaims: {}
     };
 }
 
@@ -717,6 +716,7 @@ function startFibbageRound() {
     gameState.fibbage.locked = false;
     gameState.fibbage.judgeCorrectAnswer = '';
     gameState.fibbage.judgeExtraOptions = [];
+    if (!gameState.fibbage.playerClaims) gameState.fibbage.playerClaims = {};
     gameState.optionsShown = false;
     gameState.result = null;
     pushFullState();
@@ -726,6 +726,22 @@ function startFibbageRound() {
 function getFibbageCorrectText() {
     const cur = gameState.deck[gameState.currentIndex];
     return cur?.options?.[cur.a] || '';
+}
+
+function claimFibbagePlayer(playerId) {
+    if (!gameState.fibbage || !gameState.players.some(p => p.id === playerId)) return false;
+    if (!gameState.fibbage.playerClaims) gameState.fibbage.playerClaims = {};
+    const claims = gameState.fibbage.playerClaims;
+    const owner = Object.entries(claims).find(([id, claimedBy]) => id !== playerId && claimedBy);
+    // The browser sends its stable claim token; duplicate claims are rejected server-side.
+    const claimToken = arguments[1] || '';
+    if (!claimToken) return false;
+    if (claims[playerId] && claims[playerId] !== claimToken) return false;
+    if (owner && owner[1] === claimToken) return false;
+    claims[playerId] = claimToken;
+    pushFullState();
+    renderGameScreen();
+    return true;
 }
 
 function submitFibbageAnswerForPlayer(playerId, answer) {
@@ -913,7 +929,8 @@ function finishFibbageVoting() {
 
 function handlePlayerAction(msg) {
     if (!msg || gameState.status !== 'playing' || gameState.mode !== 'fibbage') return;
-    if (msg.type === 'fibbageSubmit') submitFibbageAnswerForPlayer(msg.playerId, msg.text);
+    if (msg.type === 'fibbageClaimPlayer') claimFibbagePlayer(msg.playerId, msg.claimToken);
+    else if (msg.type === 'fibbageSubmit') submitFibbageAnswerForPlayer(msg.playerId, msg.text);
     else if (msg.type === 'fibbageVote') voteFibbageForPlayer(msg.playerId, msg.optionId);
 }
 
@@ -941,17 +958,53 @@ function scheduleFibbagePhaseTimer() {
 
 function renderFibbage() {
     const f = gameState.fibbage; if (!f) return;
-    const picker = document.getElementById('fibbagePlayerPicker');
-    const my = getFibbagePlayerId();
-    if (picker) picker.innerHTML = '<span>👤 اختر اسمك:</span>' + gameState.players.map(p => `<button class="fibbage-player-btn ${p.id===my?'active':''}" onclick="setFibbagePlayerId('${p.id}')">${p.avatar} ${escapeHtml(p.name)}</button>`).join('');
     const phase = document.getElementById('fibbagePhaseText');
-    if (phase) phase.textContent = f.phase==='writing' ? '✍️ اكتب إجابتك' : f.phase==='judge_answer' ? '⚖️ الحكم يجهّز الإجابة الصحيحة' : f.phase==='voting' ? '🗳️ اختَر الإجابة الصحيحة' : '🏆 النتائج';
-    const w=document.getElementById('fibbageWriting'),v=document.getElementById('fibbageVoting'),r=document.getElementById('fibbageResults');
-    if(w) w.style.display=f.phase==='writing'?'block':'none'; if(v) v.style.display=f.phase==='voting'?'block':'none'; if(r) r.style.display=f.phase==='results'?'block':'none';
-    if(w){ const input=document.getElementById('fibbageAnswerInput'); const submitted=f.submissions[my]; if(input && submitted){input.value=submitted.text;input.disabled=true;} else if(input){input.disabled=!my;} }
-    if(v){ const wrap=document.getElementById('fibbageOptions'); wrap.innerHTML=''; f.options.forEach(o=>{ const selected=f.votes[my]===o.id; const b=document.createElement('button'); b.className='fibbage-option'+(selected?' selected':''); b.disabled=!!f.votes[my]; b.innerHTML=`<span>❔</span>${escapeHtml(o.text)}`; b.onclick=()=>voteFibbage(o.id); wrap.appendChild(b); }); }
-    if(r){ const wrap=document.getElementById('fibbageResultsList'); wrap.innerHTML=''; f.options.forEach(o=>{ const owners=o.real?'الإجابة الصحيحة':o.playerIds.map(id=>{const p=gameState.players.find(x=>x.id===id);return p?.name||'لاعب';}).join(' + ')||'خيار أضافه الحكم'; const row=document.createElement('div'); row.className='fibbage-result-row'+(o.real?' real':''); row.innerHTML=`<div><strong>${escapeHtml(o.text)}</strong><small>${escapeHtml(owners)}</small></div><b>${f.results?.counts?.[o.id]||0} صوت</b>`; wrap.appendChild(row); }); const d=document.getElementById('fibbageScoreDelta'); if(d)d.textContent=gameState.players.map(p=>`${p.avatar} ${p.name}: +${f.results?.deltas?.[p.id]||0}`).join('  •  '); }
-
+    const submittedCount = Object.keys(f.submissions || {}).length;
+    if (phase) {
+        phase.textContent = f.phase === 'writing'
+            ? `✍️ بانتظار إجابات اللاعبين — ${submittedCount}/${gameState.players.length}`
+            : f.phase === 'judge_answer'
+                ? '⚖️ الحكم يجهّز الإجابة الصحيحة'
+                : f.phase === 'voting'
+                    ? '🗳️ الخيارات ظاهرة — اللاعبون يصوّتون'
+                    : '🏆 النتائج';
+    }
+    const w=document.getElementById('fibbageWriting');
+    const v=document.getElementById('fibbageVoting');
+    const r=document.getElementById('fibbageResults');
+    const picker=document.getElementById('fibbagePlayerPicker');
+    const timer=document.getElementById('fibbageTimer');
+    if (picker) picker.style.display='none';
+    if (timer) timer.style.display='none';
+    if(w) w.style.display='none';
+    if(v) v.style.display=f.phase==='voting'?'block':'none';
+    if(r) r.style.display=f.phase==='results'?'block':'none';
+    if(v){
+        const wrap=document.getElementById('fibbageOptions');
+        if (wrap) {
+            wrap.innerHTML='';
+            f.options.forEach(o=>{
+                const b=document.createElement('div');
+                b.className='fibbage-option host-option';
+                b.innerHTML=`<span>❔</span>${escapeHtml(o.text)}`;
+                wrap.appendChild(b);
+            });
+        }
+    }
+    if(r){
+        const wrap=document.getElementById('fibbageResultsList');
+        if(wrap){
+            wrap.innerHTML='';
+            f.options.forEach(o=>{
+                const owners=o.real?'الإجابة الصحيحة':o.playerIds.map(id=>{const p=gameState.players.find(x=>x.id===id);return p?.name||'لاعب';}).join(' + ')||'خيار أضافه الحكم';
+                const row=document.createElement('div'); row.className='fibbage-result-row'+(o.real?' real':'');
+                row.innerHTML=`<div><strong>${escapeHtml(o.text)}</strong><small>${escapeHtml(owners)}</small></div><b>${f.results?.counts?.[o.id]||0} صوت</b>`;
+                wrap.appendChild(row);
+            });
+        }
+        const d=document.getElementById('fibbageScoreDelta');
+        if(d)d.textContent=gameState.players.map(p=>`${p.avatar} ${p.name}: +${f.results?.deltas?.[p.id]||0}`).join('  •  ');
+    }
 }
 
 // ========================================================= استقبال أوامر الحكم
