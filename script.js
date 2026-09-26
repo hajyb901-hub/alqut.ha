@@ -241,7 +241,8 @@ function normalizeQuestion(raw, catalogId, cat) {
         q: String(raw.q),
         options: mixed.map(x => x.text),
         a: mixed.findIndex(x => x.index === correct),
-        difficulty: raw.difficulty || getLocalDifficulty(catalogId, 0)
+        difficulty: raw.difficulty || getLocalDifficulty(catalogId, 0),
+        image_url: raw.image_url || raw.image || ''
     };
 }
 
@@ -250,14 +251,14 @@ async function fetchCloudQuestions() {
     try {
         const { data, error } = await supabaseClient
             .from('questions_bank')
-            .select('id,category,difficulty,question,options,correct_index')
+            .select('id,category,difficulty,question,options,correct_index,image_url')
             .in('category', gameState.selectedCatalogs);
         if (error || !Array.isArray(data)) return [];
         const result = [];
         for (const row of data) {
             const cat = CATALOGS[row.category];
             if (!cat) continue;
-            const raw = { q: row.question, options: row.options, correct_index: row.correct_index, difficulty: row.difficulty };
+            const raw = { q: row.question, options: row.options, correct_index: row.correct_index, difficulty: row.difficulty, image_url: row.image_url };
             if (!difficultyMatches(row.difficulty, gameState.difficulty, row.category)) continue;
             const normalized = normalizeQuestion(raw, row.category, cat);
             if (normalized) result.push(normalized);
@@ -438,6 +439,14 @@ function renderGameScreen() {
     document.getElementById('qCatEmoji').textContent = current.catEmoji;
     document.getElementById('qCatName').textContent = current.catName;
     document.getElementById('questionText').textContent = current.q;
+    const qImage = document.getElementById('questionImage');
+    const qImageWrap = document.getElementById('questionImageWrap');
+    if (qImage && qImageWrap) {
+        const src = current.image_url || current.image || '';
+        qImage.src = src;
+        qImage.alt = 'صورة السؤال';
+        qImageWrap.classList.toggle('hidden', !src);
+    }
 
     const fibPanel = document.getElementById('fibbagePanel');
     const classicOptions = document.getElementById('optionsGrid');
