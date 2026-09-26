@@ -168,3 +168,31 @@ button,.big-btn,.setup-card,.setup-mini,.panel,.p-card,.question-card,.option-ca
 .p-question-image{width:min(100%,720px);max-height:300px;border-radius:18px}
 .question-image-wrap.hidden,.j-question-image-wrap.hidden,.p-question-image-wrap.hidden{display:none!important}
 @media(max-width:650px){.question-image,.j-question-image,.p-question-image{max-height:260px;border-radius:15px}}
+
+/* Reference polish: deep midnight canvas, photographic amber haze, crisp blue framing */
+:root{
+  --yellow:#ffc928;
+  --yellow-soft:#ffe783;
+  --cyan:#087cff;
+  --cyan-soft:#65b6ff;
+  --bg-deep:#020a1b;
+  --bg-panel:rgba(3,15,36,.95);
+  --bg-panel-2:rgba(6,23,51,.97);
+  --line:rgba(38,119,255,.34);
+  --radius:16px;
+}
+body{background:
+ radial-gradient(ellipse at 50% 110%,rgba(221,139,36,.13),transparent 36%),
+ radial-gradient(ellipse at 12% 58%,rgba(24,90,191,.13),transparent 38%),
+ radial-gradient(ellipse at 88% 22%,rgba(19,66,151,.15),transparent 34%),
+ #020817!important;}
+button,input,textarea,select{font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #ffd21a!important;outline-offset:3px}
+::selection{background:rgba(255,204,32,.35);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#030d21}
+::-webkit-scrollbar-thumb{background:linear-gradient(#1756a4,#10346b);border:2px solid #030d21;border-radius:20px}
+.big-btn.primary,.nav-btn.solid,.p-submit{background:linear-gradient(180deg,#ffda42 0%,#ffc21c 65%,#f3a900 100%)!important;color:#171b23!important;text-shadow:0 1px rgba(255,255,255,.24);border:1px solid #ffe878!important}
+.setup-card,.panel,.p-card,.question-card{backdrop-filter:blur(14px)}
+.option-card.selected,.p-option.selected{border-color:#ffd21a!important;box-shadow:0 0 0 1px #ffd21a,0 0 26px rgba(255,210,26,.2)!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
