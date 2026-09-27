@@ -242,23 +242,34 @@ function normalizeQuestion(raw, catalogId, cat) {
         options: mixed.map(x => x.text),
         a: mixed.findIndex(x => x.index === correct),
         difficulty: raw.difficulty || getLocalDifficulty(catalogId, 0),
-        image_url: raw.image_url || raw.image || ''
+        image_url: raw.image_url || raw.image || '',
+        image_credit: raw.image_credit || '',
+        image_source: raw.image_source || ''
     };
 }
 
 async function fetchCloudQuestions() {
     if (typeof supabaseClient === 'undefined') return [];
     try {
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
             .from('questions_bank')
-            .select('id,category,difficulty,question,options,correct_index,image_url')
+            .select('id,category,difficulty,question,options,correct_index,image_url,image_credit,image_source')
             .in('category', gameState.selectedCatalogs);
+        // Older databases may not have attribution columns yet; keep reading the existing bank while the additive migration is pending.
+        if (error) {
+            const fallback = await supabaseClient
+                .from('questions_bank')
+                .select('id,category,difficulty,question,options,correct_index,image_url')
+                .in('category', gameState.selectedCatalogs);
+            data = fallback.data;
+            error = fallback.error;
+        }
         if (error || !Array.isArray(data)) return [];
         const result = [];
         for (const row of data) {
             const cat = CATALOGS[row.category];
             if (!cat) continue;
-            const raw = { q: row.question, options: row.options, correct_index: row.correct_index, difficulty: row.difficulty, image_url: row.image_url };
+            const raw = { q: row.question, options: row.options, correct_index: row.correct_index, difficulty: row.difficulty, image_url: row.image_url, image_credit: row.image_credit, image_source: row.image_source };
             if (!difficultyMatches(row.difficulty, gameState.difficulty, row.category)) continue;
             const normalized = normalizeQuestion(raw, row.category, cat);
             if (normalized) result.push(normalized);
@@ -293,7 +304,7 @@ async function buildDeck() {
     const pool = [];
     shuffleArray(cloudPool).forEach(q => { const key = q.catalogId + '|' + q.q; if (!seen.has(key)) { seen.add(key); pool.push(q); } });
     shuffleArray(localPool).forEach(q => { const key = q.catalogId + '|' + q.q; if (!seen.has(key)) { seen.add(key); pool.push(q); } });
-    gameState.deck = pool.slice(0, Math.min(gameState.questionCount, pool.length));
+    gameState.deck = shuffleArray(pool).slice(0, Math.min(gameState.questionCount, pool.length));
     return gameState.deck;
 }
 
@@ -436,6 +447,7 @@ function renderGameScreen() {
 
     const current = gameState.deck[gameState.currentIndex];
     if (!current) return;
+    const questionCard = document.getElementById('questionCardBox');
     document.getElementById('qCatEmoji').textContent = current.catEmoji;
     document.getElementById('qCatName').textContent = current.catName;
     document.getElementById('questionText').textContent = current.q;
@@ -446,6 +458,9 @@ function renderGameScreen() {
         qImage.src = src;
         qImage.alt = 'صورة السؤال';
         qImageWrap.classList.toggle('hidden', !src);
+        questionCard?.classList.toggle('image-question', !!src);
+        const qCredit = document.getElementById('questionImageCredit');
+        if (qCredit) { qCredit.textContent = current.image_credit || ''; qCredit.href = current.image_source || '#'; qCredit.classList.toggle('hidden', !current.image_credit); }
     }
 
     const fibPanel = document.getElementById('fibbagePanel');

@@ -83,7 +83,7 @@
     }
 .fib-judge-input{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg-panel-2);color:var(--text-1);font:inherit}.fib-sub-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.92rem}.fib-sub-row:last-child{border-bottom:0}.fib-sub-missing{color:var(--text-3)}
 </style>
-  <link rel="stylesheet" href="theme.css?v=20260927">
+  <link rel="stylesheet" href="theme.css?v=20260929">
 </head>
 <body>
 <button id="fullscreenBtn" class="fullscreen-btn" type="button" onclick="toggleFullscreen()" aria-label="تكبير الشاشة">⛶ ملء الشاشة</button>
@@ -113,8 +113,8 @@
 
         <div class="panel">
             <div class="j-cat-row"><span id="jCatEmoji">🧩</span><span id="jCatName">—</span><span>•</span><span>سؤال <span id="jQNum">1</span>/<span id="jQTotal">0</span></span></div><div id="jDuelInfo" style="display:none" class="j-duel-info">⚡ مواجهة: —</div>
-            <div class="j-question-image-wrap hidden" id="jQuestionImageWrap"><img id="jQuestionImage" class="j-question-image" alt="صورة السؤال"></div><div class="j-question" id="jQuestion">—</div>
-            <div class="j-answer-line">✔️ الإجابة الصحيحة: <span id="jCorrectAnswer">—</span></div>
+            <div class="image-question-layout" id="jQuestionLayout"><div class="j-question-image-wrap hidden" id="jQuestionImageWrap"><img id="jQuestionImage" class="j-question-image" alt="صورة السؤال"><a class="question-image-credit hidden" id="jQuestionImageCredit" target="_blank" rel="noopener noreferrer"></a></div><div class="image-question-copy"><div class="j-question" id="jQuestion">—</div>
+            <div class="j-answer-line">✔️ الإجابة الصحيحة: <span id="jCorrectAnswer">—</span></div></div></div>
         </div>
 
         <div class="panel">
@@ -264,6 +264,8 @@ function applyState(s) {
         const jw = document.getElementById('jQuestionImageWrap');
         const imageUrl = cur.image_url || cur.image || '';
         if (ji && jw) { ji.src = imageUrl; ji.alt = 'صورة السؤال'; jw.classList.toggle('hidden', !imageUrl); }
+        document.getElementById('jQuestionLayout')?.classList.toggle('image-question', !!imageUrl);
+        const jc=document.getElementById('jQuestionImageCredit'); if(jc){jc.textContent=cur.image_credit||'';jc.href=cur.image_source||'#';jc.classList.toggle('hidden',!cur.image_credit)}
         document.getElementById('jCorrectAnswer').textContent = cur.options[cur.a];
         const duelInfo = document.getElementById('jDuelInfo');
         if (state.duel && state.duel.playerIds) {

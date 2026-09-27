@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لقطتها 📸 | لعبة الأسئلة الجماعية</title>
 <link rel="stylesheet" href="style.css?v=20260917">
-  <link rel="stylesheet" href="theme.css?v=20260927">
+  <link rel="stylesheet" href="theme.css?v=20260929">
 </head>
 <body>
 
@@ -160,9 +160,11 @@
     <div class="stage">
         <div id="duelInfo" class="duel-info"></div>
         <div class="question-card" id="questionCardBox">
-            <div class="question-image-wrap hidden" id="questionImageWrap"><img id="questionImage" class="question-image" alt="صورة السؤال" loading="eager"></div><h2 class="question-text" id="questionText">بانتظار الحكم لبدء السؤال...</h2>
+          <div class="image-question-layout" id="imageQuestionLayout">
+            <div class="question-image-wrap hidden" id="questionImageWrap"><img id="questionImage" class="question-image" alt="صورة السؤال" loading="eager"><a class="question-image-credit hidden" id="questionImageCredit" target="_blank" rel="noopener noreferrer"></a></div>
+            <div class="image-question-copy"><h2 class="question-text" id="questionText">بانتظار الحكم لبدء السؤال...</h2><div class="options-grid" id="optionsGrid" style="display:none;"></div></div>
+          </div>
         </div>
-        <div class="options-grid" id="optionsGrid" style="display:none;"></div>
 
         <div id="fibbagePanel" class="fibbage-panel" style="display:none;">
             <div class="fibbage-phase" id="fibbagePhaseText">✍️ بانتظار إجابات اللاعبين</div>
@@ -225,8 +227,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="room-sync.js?v=20260917"></script>
-<script src="questions.js?v=20260917"></script>
-<script src="script.js?v=20260917"></script>
+<script src="questions.js?v=20260928"></script>
+<script src="script.js?v=20260929"></script>
 <script>
 function isFullscreen(){ return !!document.fullscreenElement; }
 async function toggleFullscreen(){
