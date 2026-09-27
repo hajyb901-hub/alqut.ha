@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لقطتها 📸 | لعبة الأسئلة الجماعية</title>
 <link rel="stylesheet" href="style.css?v=20260917">
-  <link rel="stylesheet" href="theme.css?v=20260926">
+  <link rel="stylesheet" href="theme.css?v=20260927">
 </head>
 <body>
 
@@ -39,13 +39,17 @@
             <span class="icon">🚀</span>
             <span class="label"><strong>ابدأ اللعبة</strong><small>اختر التصنيفات واللاعبين</small></span>
         </button>
-        <button class="big-btn" onclick="window.open('judge.html','_blank')">
-            <span class="icon">⚖️</span>
-            <span class="label"><strong>لوحة الحكم</strong><small>يفتحها الحكم على جهازه أو تبويب ثاني</small></span>
+        <button class="big-btn mode-shortcut fibbage-shortcut" onclick="goToSetupStep(1); setGameMode('fibbage')">
+            <span class="icon">🎭</span>
+            <span class="label"><strong>التكاذيب</strong><small>اخدع أصحابك بإجابتك</small></span>
         </button>
-        <button class="big-btn" onclick="showAbout()">
-            <span class="icon">❔</span>
-            <span class="label"><strong>كيف نلعب؟</strong><small>شرح سريع لقوانين اللعبة</small></span>
+        <button class="big-btn mode-shortcut classic-shortcut" onclick="goToSetupStep(1); setGameMode('classic')">
+            <span class="icon">👥</span>
+            <span class="label"><strong>النمط العادي</strong><small>لعب جماعي مباشر</small></span>
+        </button>
+        <button class="big-btn settings-shortcut" onclick="goToSetupStep(1)">
+            <span class="icon">⚙️</span>
+            <span class="label"><strong>الإعدادات</strong><small>خصص الجولة</small></span>
         </button>
     </div>
 </main>
